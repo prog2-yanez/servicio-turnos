@@ -1,0 +1,73 @@
+name: SonarQube Cloud
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SONAR_ORGANIZATION: prog2-yanez
+  SONAR_PROJECT_KEY: prog2-yanez_servicio-turnos
+
+jobs:
+  sonar:
+    name: Análisis de calidad
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Historial completo para que Sonar asigne bien los issues nuevos
+          fetch-depth: 0
+
+      - name: Detectar proyecto Maven
+        id: detect
+        run: |
+          if [ -f pom.xml ]; then
+            echo "maven=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "maven=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configurar JDK 21
+        if: steps.detect.outputs.maven == 'true'
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
+        with:
+          java-version: 21
+          distribution: temurin
+          cache: maven
+
+      - name: Cache de paquetes de Sonar
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      # Proyecto Spring Boot / Maven: compila, corre tests y analiza
+      - name: Build y análisis (Maven)
+        if: steps.detect.outputs.maven == 'true'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          MVN=mvn
+          if [ -f mvnw ]; then chmod +x mvnw; MVN=./mvnw; fi
+          $MVN -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.organization=$SONAR_ORGANIZATION \
+            -Dsonar.projectKey=$SONAR_PROJECT_KEY
+
+      # Mientras no haya pom.xml, se usa el scanner genérico
+      - name: Análisis (scanner genérico)
+        if: steps.detect.outputs.maven != 'true'
+        uses: SonarSource/sonarqube-scan-action@2f77a1ec69fb1d595b06f35ab27e97605bdef703 # v5.3.2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
