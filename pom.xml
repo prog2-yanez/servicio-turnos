@@ -16,6 +16,8 @@
 
     <properties>
         <java.version>21</java.version>
+        <!-- La clase que solo arranca Spring no tiene lógica para probar -->
+        <sonar.coverage.exclusions>**/ServicioTurnosApplication.java</sonar.coverage.exclusions>
     </properties>
     <dependencies>
         <dependency>
