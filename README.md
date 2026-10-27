@@ -103,7 +103,22 @@ La respuesta esperada es `{"status":"UP"}`: el servicio está en marcha y llega 
 ./mvnw verify
 ```
 
-Las pruebas levantan un PostgreSQL temporal con Testcontainers, por lo que Docker tiene que estar en marcha. No usan `.env` ni la base de desarrollo.
+Compila, ejecuta las pruebas y genera el reporte de cobertura. Las pruebas levantan un PostgreSQL 17 temporal con Testcontainers, por lo que Docker tiene que estar en marcha. No usan `.env` ni la base de desarrollo.
+
+| Prueba | Qué comprueba |
+|---|---|
+| `ServicioTurnosApplicationTests` | Que la aplicación arranca |
+| `MigracionFlywayTests` | Que Flyway aplica las migraciones y no queda ninguna pendiente |
+| `EndpointSaludTests` | Que `/actuator/health` responde `UP` sin mostrar detalles internos |
+
+### Cobertura
+
+JaCoCo mide qué partes del código ejecutan las pruebas. Después de `./mvnw verify` el reporte queda en:
+
+- `target/site/jacoco/index.html`: para verlo en el navegador.
+- `target/site/jacoco/jacoco.xml`: el que lee SonarCloud en cada pull request.
+
+SonarCloud no cuenta la clase `ServicioTurnosApplication` en la cobertura, porque solo arranca Spring y no tiene lógica propia.
 
 ## Base de datos y migraciones
 
