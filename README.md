@@ -54,11 +54,32 @@ cp .env.example .env
 | `SPRING_DATASOURCE_URL` | URL de conexión del servicio, por ejemplo `jdbc:postgresql://localhost:5434/turnos` |
 | `SPRING_DATASOURCE_USERNAME` | Usuario con el que se conecta el servicio |
 | `SPRING_DATASOURCE_PASSWORD` | Contraseña con la que se conecta el servicio |
+| `SERVER_PORT` | Puerto del servicio (por defecto `8081`, para no chocar con el catálogo en `8080`) |
+| `CATALOGO_API_URL` | URL del servicio de catálogo (por defecto `http://localhost:8080`) |
 
 - El puerto de `SPRING_DATASOURCE_URL` tiene que coincidir con `DB_PORT`.
 - El puerto por defecto es `5434` para no chocar con PostgreSQL instalado en la máquina (`5432`) ni con la base del catálogo (`5433`).
 - La base y el usuario son solo de turnos: cada servicio tiene su propio contenedor, así que turnos no tiene acceso a la base del catálogo.
 - `.env` no se versiona. Docker Compose lo lee solo; Spring Boot no, por eso se carga a mano al ejecutar el servicio (ver más abajo).
+
+## Integración con la cátedra
+
+El servicio reserva turnos contra el servicio central de la cátedra por REST y Kafka. Usa la misma cuenta técnica que el servicio de catálogo: se da de alta una sola vez, a mano, y los dos servicios comparten el JWT técnico (contrato de integración, sección 2).
+
+La respuesta del alta (`POST /api/student/register`) o de `GET /api/student/integration` trae el `id_token` y el objeto `integration`. Esos valores se copian al `.env`:
+
+| Variable | Campo de la respuesta |
+|---|---|
+| `CATEDRA_API_URL` | URL base de la API (la entrega la cátedra) |
+| `CATEDRA_JWT` | `id_token` |
+| `CATEDRA_KAFKA_BOOTSTRAP_SERVERS` | `integration.kafkaBootstrapServers` |
+| `CATEDRA_KAFKA_CONSUMER_GROUP` | `integration.kafkaConsumerGroupId` |
+| `CATEDRA_KAFKA_TOPIC_ACCIONES` | `integration.kafkaAppointmentActionsTopic` (eventos que publica la cátedra sobre cada reserva) |
+| `CATEDRA_KAFKA_TOPIC_TELEFONO` | `integration.kafkaAppointmentPhoneTopic` (donde turnos publica el teléfono del paciente) |
+
+- Estos valores son credenciales: van solo en `.env` y nunca en el código, en los logs ni en este README.
+- El JWT técnico lo usa solo el backend para hablar con la cátedra; nunca llega a la app.
+- Si las variables están vacías el servicio arranca igual, pero no puede reservar turnos.
 
 ## Base de datos con Docker Compose
 
@@ -92,7 +113,7 @@ Desde IntelliJ se pueden definir las variables `SPRING_DATASOURCE_*` en la confi
 ### Comprobar que funciona
 
 ```bash
-curl http://localhost:8080/actuator/health
+curl http://localhost:8081/actuator/health
 ```
 
 La respuesta esperada es `{"status":"UP"}`: el servicio está en marcha y llega a la base. Es el único endpoint de Actuator que se expone y no muestra detalles internos.
