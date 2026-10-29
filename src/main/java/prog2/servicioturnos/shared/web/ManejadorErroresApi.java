@@ -2,6 +2,8 @@ package prog2.servicioturnos.shared.web;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +20,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import prog2.servicioturnos.shared.exception.ConflictoException;
 import prog2.servicioturnos.shared.exception.RecursoNoEncontradoException;
@@ -28,6 +29,17 @@ import prog2.servicioturnos.shared.exception.RecursoNoEncontradoException;
 public class ManejadorErroresApi extends ResponseEntityExceptionHandler {
 
     static final String PREFIJO_TIPO = "urn:turnos:error:";
+
+    private static final URI SIN_TIPO = URI.create("about:blank");
+
+    // Tipo y título de los errores que Spring MVC genera solo, según el status.
+    private static final Map<Integer, TipoDeError> TIPOS_POR_ESTADO = Map.of(
+            400, new TipoDeError("parametro-invalido", "Parámetro inválido"),
+            404, new TipoDeError("ruta-no-encontrada", "Ruta no encontrada"),
+            405, new TipoDeError("metodo-no-permitido", "Método no permitido"),
+            415, new TipoDeError("formato-no-soportado", "Formato no soportado"));
+
+    private static final TipoDeError TIPO_GENERICO = new TipoDeError("error-http", "Error en el pedido");
 
     private static final Logger log = LoggerFactory.getLogger(ManejadorErroresApi.class);
 
@@ -79,11 +91,8 @@ public class ManejadorErroresApi extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleTypeMismatch(
             TypeMismatchException ex, HttpHeaders headers, HttpStatusCode estado, WebRequest pedido) {
-        String parametro = ex instanceof MethodArgumentTypeMismatchException conNombre
-                ? conNombre.getName()
-                : ex.getPropertyName();
         ProblemDetail problema = conTipo(estado, "parametro-invalido", "Parámetro inválido",
-                parametro + ": el valor '" + ex.getValue() + "' no es válido");
+                ex.getPropertyName() + ": el valor '" + ex.getValue() + "' no es válido");
         return handleExceptionInternal(ex, problema, headers, estado, pedido);
     }
 
@@ -102,35 +111,16 @@ public class ManejadorErroresApi extends ResponseEntityExceptionHandler {
             Exception ex, Object body, HttpHeaders headers, HttpStatusCode estado, WebRequest pedido) {
         ResponseEntity<Object> respuesta = super.handleExceptionInternal(ex, body, headers, estado, pedido);
         if (respuesta != null && respuesta.getBody() instanceof ProblemDetail problema) {
-            if (problema.getType() == null || "about:blank".equals(problema.getType().toString())) {
-                problema.setType(URI.create(PREFIJO_TIPO + codigoSegunEstado(estado)));
-                problema.setTitle(tituloSegunEstado(estado));
+            if (SIN_TIPO.equals(Objects.requireNonNullElse(problema.getType(), SIN_TIPO))) {
+                TipoDeError tipo = TIPOS_POR_ESTADO.getOrDefault(estado.value(), TIPO_GENERICO);
+                problema.setType(URI.create(PREFIJO_TIPO + tipo.codigo()));
+                problema.setTitle(tipo.titulo());
             }
             if (pedido instanceof ServletWebRequest servlet) {
                 problema.setInstance(URI.create(servlet.getRequest().getRequestURI()));
             }
         }
         return respuesta;
-    }
-
-    private static String codigoSegunEstado(HttpStatusCode estado) {
-        return switch (estado.value()) {
-            case 400 -> "parametro-invalido";
-            case 404 -> "ruta-no-encontrada";
-            case 405 -> "metodo-no-permitido";
-            case 415 -> "formato-no-soportado";
-            default -> "error-http";
-        };
-    }
-
-    private static String tituloSegunEstado(HttpStatusCode estado) {
-        return switch (estado.value()) {
-            case 400 -> "Parámetro inválido";
-            case 404 -> "Ruta no encontrada";
-            case 405 -> "Método no permitido";
-            case 415 -> "Formato no soportado";
-            default -> "Error en el pedido";
-        };
     }
 
     private static ProblemDetail conTipo(HttpStatusCode estado, String codigo, String titulo, String detalle) {
@@ -145,5 +135,8 @@ public class ManejadorErroresApi extends ResponseEntityExceptionHandler {
         ProblemDetail problema = conTipo(estado, codigo, titulo, detalle);
         problema.setInstance(URI.create(pedido.getRequestURI()));
         return problema;
+    }
+
+    private record TipoDeError(String codigo, String titulo) {
     }
 }

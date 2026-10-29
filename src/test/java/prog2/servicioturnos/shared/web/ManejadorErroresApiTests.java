@@ -104,6 +104,16 @@ class ManejadorErroresApiTests {
     }
 
     @Test
+    void formatoNoSoportadoDevuelve415() {
+        MvcTestResult resultado = mvc.post().uri("/prueba/usuarios")
+                .contentType(MediaType.TEXT_PLAIN)
+                .content("login=ana")
+                .exchange();
+
+        verificarProblema(resultado, HttpStatus.UNSUPPORTED_MEDIA_TYPE, "formato-no-soportado", "/prueba/usuarios");
+    }
+
+    @Test
     void errorInesperadoDevuelve500SinDetallesInternos() {
         MvcTestResult resultado = mvc.get().uri("/prueba/falla").exchange();
 
