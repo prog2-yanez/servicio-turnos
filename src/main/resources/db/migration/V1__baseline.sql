@@ -1,0 +1,3 @@
+-- Migración inicial del servicio de turnos.
+-- No crea tablas: solo confirma que Flyway está conectado a la base.
+-- Las tablas de usuarios y reservas se agregan en migraciones posteriores.
