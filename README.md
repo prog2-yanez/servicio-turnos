@@ -56,11 +56,69 @@ cp .env.example .env
 | `SPRING_DATASOURCE_PASSWORD` | Contraseña con la que se conecta el servicio |
 | `SERVER_PORT` | Puerto del servicio (por defecto `8081`, para no chocar con el catálogo en `8080`) |
 | `CATALOGO_API_URL` | URL del servicio de catálogo (por defecto `http://localhost:8080`) |
+| `JWT_SECRETO` | Clave con la que turnos firma el JWT de los usuarios (HS256). Mínimo 32 caracteres |
+| `JWT_DURACION` | Cuánto dura el JWT de los usuarios (por defecto `1h`) |
 
 - El puerto de `SPRING_DATASOURCE_URL` tiene que coincidir con `DB_PORT`.
 - El puerto por defecto es `5434` para no chocar con PostgreSQL instalado en la máquina (`5432`) ni con la base del catálogo (`5433`).
 - La base y el usuario son solo de turnos: cada servicio tiene su propio contenedor, así que turnos no tiene acceso a la base del catálogo.
+- `JWT_SECRETO` se genera una vez con `openssl rand -base64 48`. Si falta o tiene menos de 32 caracteres, el servicio no arranca. El catálogo usa la misma clave para validar los tokens.
 - `.env` no se versiona. Docker Compose lo lee solo; Spring Boot no, por eso se carga a mano al ejecutar el servicio (ver más abajo).
+
+## Cuentas de usuario
+
+Turnos es el dueño de las cuentas de la app y emite su JWT. Las contraseñas se guardan con **Argon2id** y nunca aparecen en respuestas ni en logs.
+
+### Registrarse
+
+```bash
+curl -X POST http://localhost:8081/api/v1/cuenta/registro \
+  -H "Content-Type: application/json" \
+  -d '{"login": "ana", "password": "una-clave", "firstName": "Ana", "lastName": "Gomez",
+       "email": "ana@mail.com", "langKey": "es"}'
+```
+
+| Campo | Regla |
+|---|---|
+| `login` | Obligatorio, hasta 50 caracteres: letras, números y `_.@-` |
+| `password` | Obligatoria, entre 4 y 100 caracteres |
+| `email` | Obligatorio y válido, entre 5 y 254 caracteres |
+| `firstName`, `lastName` | Opcionales, hasta 50 caracteres |
+| `imageUrl` | Opcional, hasta 256 caracteres |
+| `langKey` | Opcional, entre 2 y 10 caracteres (por defecto `es`) |
+
+- Responde `201` con `{"id_token": "...", "venceEn": "..."}`: la cuenta queda activa y con la sesión iniciada.
+- `login` y `email` se guardan en minúsculas. Si ya existen, responde `409` (`login-repetido` o `email-repetido`).
+- Id, estado, roles y auditoría los decide el servicio: la cuenta nace activa y con `ROLE_USER`.
+
+### Iniciar sesión
+
+```bash
+curl -X POST http://localhost:8081/api/v1/cuenta/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "ana", "password": "una-clave"}'
+```
+
+- Usa los mismos nombres de campo que JHipster y que `/api/authenticate` de la cátedra (`rememberMe` se acepta y se ignora).
+- Responde `200` con `{"id_token": "...", "venceEn": "..."}`, igual que el registro.
+- Usuario inexistente, contraseña errónea o cuenta inactiva responden lo mismo: `401` `credenciales-invalidas` con "Usuario o contraseña incorrectos". Así no se puede averiguar qué cuentas existen.
+- Si el usuario no existe se calcula igual un hash Argon2id de relleno, para que la respuesta tarde lo mismo que con una contraseña errónea.
+
+### El JWT de los usuarios
+
+| Dato | Contenido |
+|---|---|
+| `sub` | login del usuario |
+| `userId` | id del usuario en turnos |
+| `auth` | roles separados por espacio, por ejemplo `ROLE_USER` |
+| `iss` | `servicio-turnos` |
+| `iat`, `exp` | emisión y vencimiento |
+
+Es distinto del JWT técnico de la cátedra: ese solo lo usa el backend y nunca llega a la app.
+
+## Errores
+
+Todos los errores responden `application/problem+json` (RFC 7807) con `type`, `title`, `status`, `detail` e `instance`. El `type` es `urn:turnos:error:<codigo>`, por ejemplo `urn:turnos:error:datos-invalidos`. Ningún error muestra trazas ni datos internos.
 
 ## Integración con la cátedra
 
@@ -131,6 +189,12 @@ Compila, ejecuta las pruebas y genera el reporte de cobertura. Las pruebas levan
 | `ServicioTurnosApplicationTests` | Que la aplicación arranca |
 | `MigracionFlywayTests` | Que Flyway aplica las migraciones y no queda ninguna pendiente |
 | `EndpointSaludTests` | Que `/actuator/health` responde `UP` sin mostrar detalles internos |
+| `ManejadorErroresApiTests` | El formato ProblemDetail de cada tipo de error |
+| `UsuarioTests`, `RegistrarUsuarioServiceTests` | Las reglas del registro: cuenta activa con `ROLE_USER`, login y email repetidos |
+| `CifradorArgon2idTests`, `EmisorTokensJwtTests`, `JwtPropertiesTests` | Hash Argon2id, contenido y firma del JWT, clave mínima |
+| `UsuarioPersistenciaTests` | Guardar usuarios y buscarlos por login y email contra PostgreSQL |
+| `IniciarSesionServiceTests` | Las reglas del inicio de sesión: credenciales correctas, contraseña errónea, usuario inexistente y cuenta inactiva |
+| `CuentaControllerTests` | `POST /api/v1/cuenta/registro` (201, 400 y 409) y `POST /api/v1/cuenta/login` (200, 400 y 401) |
 
 ### Cobertura
 
