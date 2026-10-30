@@ -91,6 +91,19 @@ curl -X POST http://localhost:8081/api/v1/cuenta/registro \
 - `login` y `email` se guardan en minúsculas. Si ya existen, responde `409` (`login-repetido` o `email-repetido`).
 - Id, estado, roles y auditoría los decide el servicio: la cuenta nace activa y con `ROLE_USER`.
 
+### Iniciar sesión
+
+```bash
+curl -X POST http://localhost:8081/api/v1/cuenta/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "ana", "password": "una-clave"}'
+```
+
+- Usa los mismos nombres de campo que JHipster y que `/api/authenticate` de la cátedra (`rememberMe` se acepta y se ignora).
+- Responde `200` con `{"id_token": "...", "venceEn": "..."}`, igual que el registro.
+- Usuario inexistente, contraseña errónea o cuenta inactiva responden lo mismo: `401` `credenciales-invalidas` con "Usuario o contraseña incorrectos". Así no se puede averiguar qué cuentas existen.
+- Si el usuario no existe se calcula igual un hash Argon2id de relleno, para que la respuesta tarde lo mismo que con una contraseña errónea.
+
 ### El JWT de los usuarios
 
 | Dato | Contenido |
@@ -179,8 +192,9 @@ Compila, ejecuta las pruebas y genera el reporte de cobertura. Las pruebas levan
 | `ManejadorErroresApiTests` | El formato ProblemDetail de cada tipo de error |
 | `UsuarioTests`, `RegistrarUsuarioServiceTests` | Las reglas del registro: cuenta activa con `ROLE_USER`, login y email repetidos |
 | `CifradorArgon2idTests`, `EmisorTokensJwtTests`, `JwtPropertiesTests` | Hash Argon2id, contenido y firma del JWT, clave mínima |
-| `UsuarioPersistenciaTests` | Guardar y buscar usuarios contra PostgreSQL |
-| `CuentaControllerTests` | `POST /api/v1/cuenta/registro`: 201, 400 y 409 |
+| `UsuarioPersistenciaTests` | Guardar usuarios y buscarlos por login y email contra PostgreSQL |
+| `IniciarSesionServiceTests` | Las reglas del inicio de sesión: credenciales correctas, contraseña errónea, usuario inexistente y cuenta inactiva |
+| `CuentaControllerTests` | `POST /api/v1/cuenta/registro` (201, 400 y 409) y `POST /api/v1/cuenta/login` (200, 400 y 401) |
 
 ### Cobertura
 
