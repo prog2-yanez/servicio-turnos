@@ -8,6 +8,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "jwt")
 public record JwtProperties(String secreto, Duration duracion) {
 
+    // Quién firma el token: el emisor lo pone en "iss" y la validación lo exige.
+    public static final String EMISOR = "servicio-turnos";
+
     static final int LARGO_MINIMO_SECRETO = 32;
 
     public JwtProperties {

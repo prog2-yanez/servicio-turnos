@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
@@ -24,7 +25,9 @@ import prog2.servicioturnos.shared.exception.ConflictoException;
 import prog2.servicioturnos.shared.exception.NoAutenticadoException;
 import prog2.servicioturnos.shared.exception.RecursoNoEncontradoException;
 
+// Prueba solo cómo se traducen los errores; la seguridad tiene sus propias pruebas.
 @WebMvcTest(controllers = ManejadorErroresApiTests.ControladorDePrueba.class)
+@AutoConfigureMockMvc(addFilters = false)
 @Import(ManejadorErroresApiTests.ControladorDePrueba.class)
 class ManejadorErroresApiTests {
 

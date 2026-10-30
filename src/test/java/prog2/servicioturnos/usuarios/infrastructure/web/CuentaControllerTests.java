@@ -10,11 +10,14 @@ import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
+import prog2.servicioturnos.config.JwtConfig;
+import prog2.servicioturnos.config.SecurityConfig;
 import prog2.servicioturnos.usuarios.domain.exception.CredencialesInvalidasException;
 import prog2.servicioturnos.usuarios.domain.exception.LoginRepetidoException;
 import prog2.servicioturnos.usuarios.domain.model.Credenciales;
@@ -26,6 +29,7 @@ import prog2.servicioturnos.usuarios.infrastructure.web.dto.LoginRequest;
 import prog2.servicioturnos.usuarios.infrastructure.web.dto.RegistroRequest;
 
 @WebMvcTest(controllers = CuentaController.class)
+@Import({SecurityConfig.class, JwtConfig.class})
 class CuentaControllerTests {
 
     @Autowired
