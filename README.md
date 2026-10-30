@@ -116,6 +116,27 @@ curl -X POST http://localhost:8081/api/v1/cuenta/login \
 
 Es distinto del JWT técnico de la cátedra: ese solo lo usa el backend y nunca llega a la app.
 
+## Autenticación
+
+Todas las APIs piden el JWT del usuario, salvo `POST /api/v1/cuenta/registro`, `POST /api/v1/cuenta/login` y `GET /actuator/health`. El token va en cada pedido:
+
+```bash
+curl http://localhost:8081/api/v1/cuenta -H "Authorization: Bearer <id_token>"
+```
+
+- Se valida la firma (HS256 con `JWT_SECRETO`), el vencimiento (`exp`), el emisor (`iss = servicio-turnos`) y que tenga el rol `ROLE_USER`.
+- El servicio no guarda sesiones: cada pedido se valida solo con su token.
+- El usuario siempre se toma del token (`sub`), nunca de un dato que mande el cliente.
+- `GET /api/v1/cuenta` devuelve los datos de la cuenta del usuario del token (login, nombre, email, idioma, roles), nunca el hash de la contraseña.
+
+| Situación | Status | `type` |
+|---|---|---|
+| Sin token | 401 | `no-autenticado` |
+| Token con firma incorrecta, vencido o de otro emisor | 401 | `token-invalido` |
+| Token válido sin el rol necesario | 403 | `sin-permiso` |
+
+Con `token-invalido` la app tiene que volver a iniciar sesión.
+
 ## Errores
 
 Todos los errores responden `application/problem+json` (RFC 7807) con `type`, `title`, `status`, `detail` e `instance`. El `type` es `urn:turnos:error:<codigo>`, por ejemplo `urn:turnos:error:datos-invalidos`. Ningún error muestra trazas ni datos internos.
@@ -194,7 +215,9 @@ Compila, ejecuta las pruebas y genera el reporte de cobertura. Las pruebas levan
 | `CifradorArgon2idTests`, `EmisorTokensJwtTests`, `JwtPropertiesTests` | Hash Argon2id, contenido y firma del JWT, clave mínima |
 | `UsuarioPersistenciaTests` | Guardar usuarios y buscarlos por login y email contra PostgreSQL |
 | `IniciarSesionServiceTests` | Las reglas del inicio de sesión: credenciales correctas, contraseña errónea, usuario inexistente y cuenta inactiva |
-| `CuentaControllerTests` | `POST /api/v1/cuenta/registro` (201, 400 y 409) y `POST /api/v1/cuenta/login` (200, 400 y 401) |
+| `ConsultarCuentaServiceTests` | La cuenta se busca por el login del token |
+| `CuentaControllerTests` | Registro (201, 400 y 409), login (200, 400 y 401) y `GET /api/v1/cuenta` (200, 401, 403 y 404) |
+| `SeguridadIntegracionTests` | Con la aplicación completa: token real, sin token, token alterado, vencido, de otro emisor y sin rol |
 
 ### Cobertura
 
