@@ -2,6 +2,7 @@ package prog2.servicioturnos;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.jayway.jsonpath.JsonPath;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -101,7 +102,7 @@ class SeguridadIntegracionTests {
                 .exchange();
         assertThat(resultado).hasStatus(HttpStatus.CREATED);
         String cuerpo = new String(resultado.getResponse().getContentAsByteArray());
-        return new Registrado(login, cuerpo.replaceAll(".*\"id_token\":\"([^\"]+)\".*", "$1"));
+        return new Registrado(login, JsonPath.read(cuerpo, "$.id_token"));
     }
 
     private MvcTestResult cuentaCon(String autorizacion) {
