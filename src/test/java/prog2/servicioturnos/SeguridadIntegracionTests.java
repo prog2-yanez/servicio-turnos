@@ -3,6 +3,7 @@ package prog2.servicioturnos;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -33,12 +34,12 @@ class SeguridadIntegracionTests {
 
     @Test
     void conElTokenDelRegistroSeAccedeALaCuenta() {
-        String token = registrarYObtenerToken("seguridad.ok", "seguridad.ok@mail.com");
+        Registrado ana = registrar();
 
-        MvcTestResult resultado = cuentaCon("Bearer " + token);
+        MvcTestResult resultado = cuentaCon("Bearer " + ana.token());
 
         assertThat(resultado).hasStatusOk();
-        assertThat(resultado).bodyJson().extractingPath("$.login").isEqualTo("seguridad.ok");
+        assertThat(resultado).bodyJson().extractingPath("$.login").isEqualTo(ana.login());
         assertThat(resultado).bodyText().doesNotContain("contrasenia", "hash");
     }
 
@@ -51,7 +52,7 @@ class SeguridadIntegracionTests {
 
     @Test
     void unTokenAlteradoDevuelve401TokenInvalido() {
-        String token = registrarYObtenerToken("seguridad.alterado", "seguridad.alterado@mail.com");
+        String token = registrar().token();
         String alterado = token.substring(0, token.length() - 4) + "AAAA";
 
         verificar(cuentaCon("Bearer " + alterado), HttpStatus.UNAUTHORIZED, "token-invalido");
@@ -82,22 +83,25 @@ class SeguridadIntegracionTests {
 
     @Test
     void registroLoginYHealthNoPidenToken() {
-        registrarYObtenerToken("seguridad.publico", "seguridad.publico@mail.com");
+        Registrado ana = registrar();
 
         assertThat(mvc.post().uri("/api/v1/cuenta/login").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"username\": \"seguridad.publico\", \"password\": \"secreta1\"}").exchange())
+                .content("{\"username\": \"" + ana.login() + "\", \"password\": \"secreta1\"}").exchange())
                 .hasStatusOk();
         assertThat(mvc.get().uri("/actuator/health").exchange()).hasStatusOk();
     }
 
-    private String registrarYObtenerToken(String login, String email) {
+    // Cada prueba registra un login nuevo, así no depende de lo que ya haya en la base.
+    private Registrado registrar() {
+        String login = "seguridad." + UUID.randomUUID().toString().substring(0, 8);
+        String email = login + "@mail.com";
         MvcTestResult resultado = mvc.post().uri("/api/v1/cuenta/registro")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"login\": \"" + login + "\", \"password\": \"secreta1\", \"email\": \"" + email + "\"}")
                 .exchange();
         assertThat(resultado).hasStatus(HttpStatus.CREATED);
         String cuerpo = new String(resultado.getResponse().getContentAsByteArray());
-        return cuerpo.replaceAll(".*\"id_token\":\"([^\"]+)\".*", "$1");
+        return new Registrado(login, cuerpo.replaceAll(".*\"id_token\":\"([^\"]+)\".*", "$1"));
     }
 
     private MvcTestResult cuentaCon(String autorizacion) {
@@ -114,5 +118,8 @@ class SeguridadIntegracionTests {
     private static void verificar(MvcTestResult resultado, HttpStatus estado, String codigo) {
         assertThat(resultado).hasStatus(estado);
         assertThat(resultado).bodyJson().extractingPath("$.type").isEqualTo("urn:turnos:error:" + codigo);
+    }
+
+    private record Registrado(String login, String token) {
     }
 }
