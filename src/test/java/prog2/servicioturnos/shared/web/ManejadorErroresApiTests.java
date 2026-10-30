@@ -8,12 +8,16 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,9 +25,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import prog2.servicioturnos.shared.exception.ConflictoException;
+import prog2.servicioturnos.shared.exception.NoAutenticadoException;
 import prog2.servicioturnos.shared.exception.RecursoNoEncontradoException;
 
+// Prueba solo cómo se traducen los errores; la seguridad tiene sus propias pruebas.
 @WebMvcTest(controllers = ManejadorErroresApiTests.ControladorDePrueba.class)
+@AutoConfigureMockMvc(addFilters = false)
 @Import(ManejadorErroresApiTests.ControladorDePrueba.class)
 class ManejadorErroresApiTests {
 
@@ -36,6 +43,34 @@ class ManejadorErroresApiTests {
 
         verificarProblema(resultado, HttpStatus.NOT_FOUND, "proceso-no-encontrado", "/prueba/procesos/7");
         assertThat(resultado).bodyJson().extractingPath("$.detail").isEqualTo("No existe un proceso con id 7");
+    }
+
+    @Test
+    void noAutenticadoDevuelve401ConSuPropioTipo() {
+        MvcTestResult resultado = mvc.get().uri("/prueba/sin-autenticar").exchange();
+
+        verificarProblema(resultado, HttpStatus.UNAUTHORIZED, "credenciales-invalidas", "/prueba/sin-autenticar");
+    }
+
+    @Test
+    void sinTokenDevuelve401NoAutenticado() {
+        MvcTestResult resultado = mvc.get().uri("/prueba/sin-token").exchange();
+
+        verificarProblema(resultado, HttpStatus.UNAUTHORIZED, "no-autenticado", "/prueba/sin-token");
+    }
+
+    @Test
+    void tokenInvalidoDevuelve401ConSuPropioTipo() {
+        MvcTestResult resultado = mvc.get().uri("/prueba/token-invalido").exchange();
+
+        verificarProblema(resultado, HttpStatus.UNAUTHORIZED, "token-invalido", "/prueba/token-invalido");
+    }
+
+    @Test
+    void sinPermisoDevuelve403() {
+        MvcTestResult resultado = mvc.get().uri("/prueba/sin-permiso").exchange();
+
+        verificarProblema(resultado, HttpStatus.FORBIDDEN, "sin-permiso", "/prueba/sin-permiso");
     }
 
     @Test
@@ -139,6 +174,12 @@ class ManejadorErroresApiTests {
         }
     }
 
+    static class CredencialesDePruebaException extends NoAutenticadoException {
+        CredencialesDePruebaException() {
+            super("credenciales-invalidas", "Usuario o contraseña incorrectos");
+        }
+    }
+
     static class LoginRepetidoException extends ConflictoException {
         LoginRepetidoException() {
             super("login-repetido", "Ya existe una cuenta con ese login");
@@ -155,6 +196,26 @@ class ManejadorErroresApiTests {
         @GetMapping("/prueba/procesos/{id}")
         String proceso(@PathVariable long id) {
             throw new ProcesoNoEncontradoException(id);
+        }
+
+        @GetMapping("/prueba/sin-autenticar")
+        String sinAutenticar() {
+            throw new CredencialesDePruebaException();
+        }
+
+        @GetMapping("/prueba/sin-token")
+        String sinToken() {
+            throw new InsufficientAuthenticationException("falta el token");
+        }
+
+        @GetMapping("/prueba/token-invalido")
+        String tokenInvalido() {
+            throw new InvalidBearerTokenException("firma incorrecta");
+        }
+
+        @GetMapping("/prueba/sin-permiso")
+        String sinPermiso() {
+            throw new AccessDeniedException("falta el rol");
         }
 
         @GetMapping("/prueba/conflicto")
