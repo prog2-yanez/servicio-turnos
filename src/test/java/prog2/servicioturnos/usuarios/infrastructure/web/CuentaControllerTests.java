@@ -5,24 +5,31 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
 import java.time.Instant;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import prog2.servicioturnos.config.JwtConfig;
 import prog2.servicioturnos.config.SecurityConfig;
 import prog2.servicioturnos.usuarios.domain.exception.CredencialesInvalidasException;
+import prog2.servicioturnos.usuarios.domain.exception.CuentaNoEncontradaException;
 import prog2.servicioturnos.usuarios.domain.exception.LoginRepetidoException;
 import prog2.servicioturnos.usuarios.domain.model.Credenciales;
 import prog2.servicioturnos.usuarios.domain.model.DatosRegistro;
+import prog2.servicioturnos.usuarios.domain.model.Rol;
 import prog2.servicioturnos.usuarios.domain.model.TokenAcceso;
+import prog2.servicioturnos.usuarios.domain.model.Usuario;
 import prog2.servicioturnos.usuarios.domain.ports.in.ConsultarCuentaUseCase;
 import prog2.servicioturnos.usuarios.domain.ports.in.IniciarSesionUseCase;
 import prog2.servicioturnos.usuarios.domain.ports.in.RegistrarUsuarioUseCase;
@@ -144,6 +151,54 @@ class CuentaControllerTests {
     @Test
     void laContraseniaDelLoginNoApareceAlImprimirElPedido() {
         assertThat(new LoginRequest("ana", "secreta").toString()).doesNotContain("secreta").contains("****");
+    }
+
+    @Test
+    void laCuentaSeConsultaConElLoginDelToken() {
+        Instant creado = Instant.parse("2026-10-30T12:00:00Z");
+        when(consultarCuenta.consultar("ana")).thenReturn(new Usuario(1L, "ana", "hash-secreto", "Ana", "Gomez",
+                "ana@mail.com", null, true, "es", Set.of(Rol.USUARIO), "ana", creado, "ana", creado));
+
+        MvcTestResult resultado = mvc.get().uri("/api/v1/cuenta").with(usuarioConRol("ROLE_USER")).exchange();
+
+        assertThat(resultado).hasStatusOk();
+        assertThat(resultado).bodyJson().isEqualTo("""
+                {"id": 1, "login": "ana", "firstName": "Ana", "lastName": "Gomez", "email": "ana@mail.com",
+                 "imageUrl": null, "langKey": "es", "activated": true, "authorities": ["ROLE_USER"]}
+                """);
+        assertThat(resultado).bodyText().doesNotContain("hash-secreto");
+    }
+
+    @Test
+    void laCuentaSinTokenDevuelve401() {
+        MvcTestResult resultado = mvc.get().uri("/api/v1/cuenta").exchange();
+
+        assertThat(resultado).hasStatus(HttpStatus.UNAUTHORIZED);
+        assertThat(resultado).bodyJson().extractingPath("$.type").isEqualTo("urn:turnos:error:no-autenticado");
+        verifyNoInteractions(consultarCuenta);
+    }
+
+    @Test
+    void laCuentaConUnTokenSinElRolDeUsuarioDevuelve403() {
+        MvcTestResult resultado = mvc.get().uri("/api/v1/cuenta").with(usuarioConRol("ROLE_OTRO")).exchange();
+
+        assertThat(resultado).hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(resultado).bodyJson().extractingPath("$.type").isEqualTo("urn:turnos:error:sin-permiso");
+        verifyNoInteractions(consultarCuenta);
+    }
+
+    @Test
+    void unaCuentaQueYaNoExisteDevuelve404() {
+        when(consultarCuenta.consultar("ana")).thenThrow(new CuentaNoEncontradaException("ana"));
+
+        MvcTestResult resultado = mvc.get().uri("/api/v1/cuenta").with(usuarioConRol("ROLE_USER")).exchange();
+
+        assertThat(resultado).hasStatus(HttpStatus.NOT_FOUND);
+        assertThat(resultado).bodyJson().extractingPath("$.type").isEqualTo("urn:turnos:error:cuenta-no-encontrada");
+    }
+
+    private static RequestPostProcessor usuarioConRol(String rol) {
+        return jwt().jwt(token -> token.subject("ana")).authorities(new SimpleGrantedAuthority(rol));
     }
 
     private MvcTestResult iniciar(String cuerpo) {
