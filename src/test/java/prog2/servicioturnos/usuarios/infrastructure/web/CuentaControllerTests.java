@@ -23,6 +23,7 @@ import prog2.servicioturnos.usuarios.domain.exception.LoginRepetidoException;
 import prog2.servicioturnos.usuarios.domain.model.Credenciales;
 import prog2.servicioturnos.usuarios.domain.model.DatosRegistro;
 import prog2.servicioturnos.usuarios.domain.model.TokenAcceso;
+import prog2.servicioturnos.usuarios.domain.ports.in.ConsultarCuentaUseCase;
 import prog2.servicioturnos.usuarios.domain.ports.in.IniciarSesionUseCase;
 import prog2.servicioturnos.usuarios.domain.ports.in.RegistrarUsuarioUseCase;
 import prog2.servicioturnos.usuarios.infrastructure.web.dto.LoginRequest;
@@ -40,6 +41,9 @@ class CuentaControllerTests {
 
     @MockitoBean
     private IniciarSesionUseCase iniciarSesion;
+
+    @MockitoBean
+    private ConsultarCuentaUseCase consultarCuenta;
 
     @Test
     void registraYDevuelve201ConElToken() {
