@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import prog2.servicioturnos.usuarios.domain.exception.LoginRepetidoException;
 import prog2.servicioturnos.usuarios.domain.model.DatosRegistro;
 import prog2.servicioturnos.usuarios.domain.model.TokenAcceso;
+import prog2.servicioturnos.usuarios.domain.ports.in.IniciarSesionUseCase;
 import prog2.servicioturnos.usuarios.domain.ports.in.RegistrarUsuarioUseCase;
 import prog2.servicioturnos.usuarios.infrastructure.web.dto.RegistroRequest;
 
@@ -29,6 +30,9 @@ class CuentaControllerTests {
 
     @MockitoBean
     private RegistrarUsuarioUseCase registrarUsuario;
+
+    @MockitoBean
+    private IniciarSesionUseCase iniciarSesion;
 
     @Test
     void registraYDevuelve201ConElToken() {
