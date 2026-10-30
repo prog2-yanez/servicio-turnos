@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import prog2.servicioturnos.shared.exception.ConflictoException;
+import prog2.servicioturnos.shared.exception.NoAutenticadoException;
 import prog2.servicioturnos.shared.exception.RecursoNoEncontradoException;
 
 @WebMvcTest(controllers = ManejadorErroresApiTests.ControladorDePrueba.class)
@@ -36,6 +37,13 @@ class ManejadorErroresApiTests {
 
         verificarProblema(resultado, HttpStatus.NOT_FOUND, "proceso-no-encontrado", "/prueba/procesos/7");
         assertThat(resultado).bodyJson().extractingPath("$.detail").isEqualTo("No existe un proceso con id 7");
+    }
+
+    @Test
+    void noAutenticadoDevuelve401ConSuPropioTipo() {
+        MvcTestResult resultado = mvc.get().uri("/prueba/sin-autenticar").exchange();
+
+        verificarProblema(resultado, HttpStatus.UNAUTHORIZED, "credenciales-invalidas", "/prueba/sin-autenticar");
     }
 
     @Test
@@ -139,6 +147,12 @@ class ManejadorErroresApiTests {
         }
     }
 
+    static class CredencialesDePruebaException extends NoAutenticadoException {
+        CredencialesDePruebaException() {
+            super("credenciales-invalidas", "Usuario o contraseña incorrectos");
+        }
+    }
+
     static class LoginRepetidoException extends ConflictoException {
         LoginRepetidoException() {
             super("login-repetido", "Ya existe una cuenta con ese login");
@@ -155,6 +169,11 @@ class ManejadorErroresApiTests {
         @GetMapping("/prueba/procesos/{id}")
         String proceso(@PathVariable long id) {
             throw new ProcesoNoEncontradoException(id);
+        }
+
+        @GetMapping("/prueba/sin-autenticar")
+        String sinAutenticar() {
+            throw new CredencialesDePruebaException();
         }
 
         @GetMapping("/prueba/conflicto")

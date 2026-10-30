@@ -22,6 +22,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import prog2.servicioturnos.shared.exception.ConflictoException;
+import prog2.servicioturnos.shared.exception.NoAutenticadoException;
 import prog2.servicioturnos.shared.exception.RecursoNoEncontradoException;
 
 // Traduce las excepciones a ProblemDetail (RFC 7807), con títulos y detalles en español.
@@ -46,6 +47,11 @@ public class ManejadorErroresApi extends ResponseEntityExceptionHandler {
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public ProblemDetail recursoNoEncontrado(RecursoNoEncontradoException e, HttpServletRequest pedido) {
         return problema(HttpStatus.NOT_FOUND, e.codigo(), "Recurso no encontrado", e.getMessage(), pedido);
+    }
+
+    @ExceptionHandler(NoAutenticadoException.class)
+    public ProblemDetail noAutenticado(NoAutenticadoException e, HttpServletRequest pedido) {
+        return problema(HttpStatus.UNAUTHORIZED, e.codigo(), "No autenticado", e.getMessage(), pedido);
     }
 
     @ExceptionHandler(ConflictoException.class)
