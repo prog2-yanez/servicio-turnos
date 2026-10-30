@@ -12,6 +12,12 @@ public record DatosRegistro(
         email = enMinusculas(email);
     }
 
+    // La contraseña nunca se imprime, ni siquiera si este objeto termina en un log.
+    @Override
+    public String toString() {
+        return "DatosRegistro[login=" + login + ", email=" + email + ", contrasenia=****]";
+    }
+
     private static String enMinusculas(String texto) {
         return texto == null ? null : texto.strip().toLowerCase(Locale.ROOT);
     }
