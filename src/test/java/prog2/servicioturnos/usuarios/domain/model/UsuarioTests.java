@@ -42,6 +42,14 @@ class UsuarioTests {
     }
 
     @Test
+    void lasCredencialesComparanElLoginEnMinusculasYOcultanLaContrasenia() {
+        Credenciales credenciales = new Credenciales(" ANA ", "secreta");
+
+        assertThat(credenciales.login()).isEqualTo("ana");
+        assertThat(credenciales.toString()).doesNotContain("secreta").contains("****");
+    }
+
+    @Test
     void reconoceLosRolesPorSuNombreDeJhipster() {
         assertThat(Rol.desdeNombre("ROLE_USER")).isEqualTo(Rol.USUARIO);
         assertThat(Rol.desdeNombre("ROLE_ADMIN")).isEqualTo(Rol.ADMINISTRADOR);

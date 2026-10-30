@@ -34,5 +34,7 @@ class UsuarioPersistenciaTests {
         assertThat(adaptador.existeEmail("ana@mail.com")).isTrue();
         assertThat(adaptador.existeLogin("otra")).isFalse();
         assertThat(adaptador.existeEmail("otra@mail.com")).isFalse();
+        assertThat(adaptador.buscarPorLogin("ana")).get().extracting(Usuario::email).isEqualTo("ana@mail.com");
+        assertThat(adaptador.buscarPorLogin("otra")).isEmpty();
     }
 }
