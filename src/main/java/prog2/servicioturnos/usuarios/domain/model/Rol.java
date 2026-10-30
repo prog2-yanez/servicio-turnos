@@ -15,4 +15,13 @@ public enum Rol {
     public String nombre() {
         return nombre;
     }
+
+    public static Rol desdeNombre(String nombre) {
+        for (Rol rol : values()) {
+            if (rol.nombre.equals(nombre)) {
+                return rol;
+            }
+        }
+        throw new IllegalArgumentException("Rol desconocido: " + nombre);
+    }
 }
