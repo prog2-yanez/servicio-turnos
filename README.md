@@ -176,6 +176,24 @@ La respuesta del alta (`POST /api/student/register`) o de `GET /api/student/inte
 - El JWT técnico lo usa solo el backend para hablar con la cátedra; nunca llega a la app.
 - Si las variables están vacías el servicio arranca igual, pero no puede reservar turnos.
 
+### Ocupaciones de un profesional
+
+Para saber qué turnos ya están tomados, turnos le pide a la cátedra las ocupaciones de un profesional en una fecha (`GET /api/appointment-occupancies`, contrato, sección 8), con el JWT técnico. El JWT del usuario nunca se manda a la cátedra.
+
+- Cada ocupación trae fecha, hora de inicio y estado: `CONFIRMED` (reservado) o `HELD` (retenido hasta `expiresAt`). Una lista vacía es válida: el profesional tiene todo libre.
+- Si un mismo turno aparece como `CONFIRMED` y como `HELD`, prevalece `CONFIRMED`. Las ocupaciones incompletas o con un estado desconocido se ignoran.
+- Los timeouts son los de `catedra.api.timeout-conexion` (5s) y `catedra.api.timeout-lectura` (30s).
+- Los errores se distinguen por el `code` de la respuesta, porque el mismo status puede significar cosas distintas:
+
+| Respuesta de la cátedra | Respuesta de turnos | `type` |
+|---|---|---|
+| `404 PROFESSIONAL_NOT_FOUND` | `404` | `profesional-no-encontrado` |
+| `400 PROFESSIONAL_DISABLED` | `409` | `profesional-deshabilitado` |
+| `401`, `403` o `STUDENT_INTEGRATION_NOT_FOUND` | `503`, y queda un error en el log para revisar `CATEDRA_JWT` | `catedra-no-disponible` |
+| Otro error, timeout o sin conexión | `503` | `catedra-no-disponible` |
+
+Ni los errores que ve la app ni el log muestran la URL de la cátedra ni el token: en el log queda solo el status y el `code`.
+
 ## Base de datos con Docker Compose
 
 ```bash
