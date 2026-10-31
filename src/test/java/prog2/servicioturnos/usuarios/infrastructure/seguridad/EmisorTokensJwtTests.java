@@ -34,7 +34,7 @@ class EmisorTokensJwtTests {
 
         Jwt leido = decodificadorCon(PROPIEDADES.secretoEnBytes()).decode(token.valor());
         assertThat(leido.getSubject()).isEqualTo("ana");
-        assertThat(leido.getClaimAsString("iss")).isEqualTo(EmisorTokensJwt.EMISOR);
+        assertThat(leido.getClaimAsString("iss")).isEqualTo(JwtProperties.EMISOR);
         assertThat(leido.<Long>getClaim("userId")).isEqualTo(7L);
         assertThat(leido.getClaimAsString("auth")).isEqualTo("ROLE_USER");
         assertThat(token.venceEn()).isEqualTo(AHORA.plus(Duration.ofHours(1)));

@@ -19,8 +19,6 @@ import prog2.servicioturnos.usuarios.domain.ports.out.EmisorTokens;
 @Component
 public class EmisorTokensJwt implements EmisorTokens {
 
-    static final String EMISOR = "servicio-turnos";
-
     private final JwtEncoder codificador;
     private final JwtProperties propiedades;
     private final Clock reloj;
@@ -36,7 +34,7 @@ public class EmisorTokensJwt implements EmisorTokens {
         Instant ahora = reloj.instant();
         Instant vence = ahora.plus(propiedades.duracion());
         JwtClaimsSet datos = JwtClaimsSet.builder()
-                .issuer(EMISOR)
+                .issuer(JwtProperties.EMISOR)
                 .subject(usuario.login())
                 .issuedAt(ahora)
                 .expiresAt(vence)
