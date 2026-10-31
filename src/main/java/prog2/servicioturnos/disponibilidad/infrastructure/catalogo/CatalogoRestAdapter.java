@@ -1,5 +1,7 @@
 package prog2.servicioturnos.disponibilidad.infrastructure.catalogo;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,13 +18,22 @@ import prog2.servicioturnos.disponibilidad.domain.exception.CatalogoNoDisponible
 import prog2.servicioturnos.disponibilidad.domain.exception.ProfesionalDeshabilitadoException;
 import prog2.servicioturnos.disponibilidad.domain.exception.ProfesionalNoEncontradoException;
 import prog2.servicioturnos.disponibilidad.domain.model.ProfesionalConAgenda;
+import prog2.servicioturnos.disponibilidad.domain.model.ProfesionalResumen;
 import prog2.servicioturnos.disponibilidad.domain.ports.out.CatalogoClient;
+import prog2.servicioturnos.disponibilidad.infrastructure.catalogo.dto.PaginaProfesionalesResponse;
 import prog2.servicioturnos.disponibilidad.infrastructure.catalogo.dto.ProfesionalConAgendaResponse;
 
 @Component
 public class CatalogoRestAdapter implements CatalogoClient {
 
     static final String RUTA_PROFESIONAL = "/api/v1/profesionales/{id}";
+    static final String RUTA_PROFESIONALES = "/api/v1/profesionales";
+
+    // El máximo que acepta el catálogo por página.
+    static final int TAMANIO_PAGINA = 100;
+
+    // Corta el recorrido si el catálogo nunca dijera que es la última página.
+    static final int PAGINAS_MAXIMAS = 50;
 
     private static final Logger log = LoggerFactory.getLogger(CatalogoRestAdapter.class);
 
@@ -60,6 +71,49 @@ public class CatalogoRestAdapter implements CatalogoClient {
             throw new CatalogoNoDisponibleException();
         }
         return respuesta.aDominio();
+    }
+
+    @Override
+    public List<ProfesionalResumen> listarHabilitados(long categoriaId) {
+        List<ProfesionalResumen> profesionales = new ArrayList<>();
+        for (int pagina = 0; pagina < PAGINAS_MAXIMAS; pagina++) {
+            PaginaProfesionalesResponse respuesta = pedirPagina(categoriaId, pagina);
+            if (respuesta.content() != null) {
+                respuesta.content().forEach(profesional -> profesionales.add(profesional.aDominio()));
+            }
+            if (respuesta.esUltima() || respuesta.content() == null || respuesta.content().isEmpty()) {
+                break;
+            }
+        }
+        return profesionales;
+    }
+
+    private PaginaProfesionalesResponse pedirPagina(long categoriaId, int pagina) {
+        PaginaProfesionalesResponse respuesta;
+        try {
+            respuesta = catalogoRestClient.get()
+                    .uri(uri -> uri.path(RUTA_PROFESIONALES)
+                            .queryParam("categoriaId", categoriaId)
+                            .queryParam("habilitado", true)
+                            .queryParam("page", pagina)
+                            .queryParam("size", TAMANIO_PAGINA)
+                            .build())
+                    .headers(encabezados -> tokenDelUsuario().ifPresent(encabezados::setBearerAuth))
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (pedido, resp) -> {
+                        throw noDisponible(resp.getStatusCode());
+                    })
+                    .body(PaginaProfesionalesResponse.class);
+        } catch (RestClientException e) {
+            log.warn("El catálogo no respondió al listar la categoría {}: {}",
+                    categoriaId, e.getClass().getSimpleName());
+            throw new CatalogoNoDisponibleException();
+        }
+        if (respuesta == null) {
+            log.warn("El catálogo respondió sin cuerpo al listar la categoría {}", categoriaId);
+            throw new CatalogoNoDisponibleException();
+        }
+        return respuesta;
     }
 
     // Se reenvía el JWT del usuario que hizo el pedido, así el catálogo sabe quién originó la consulta (ADR 0003).

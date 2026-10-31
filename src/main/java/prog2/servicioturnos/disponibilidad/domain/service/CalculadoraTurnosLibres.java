@@ -37,6 +37,11 @@ public final class CalculadoraTurnosLibres {
         return List.copyOf(libres.values());
     }
 
+    // Hoy se puede consultar (se ofrecen los turnos que todavía no empezaron); un día anterior, no.
+    public static boolean esFechaPasada(LocalDate fecha, Instant ahora, ZoneId zona) {
+        return fecha.isBefore(LocalDate.ofInstant(ahora, zona));
+    }
+
     // Solo hace falta preguntar por las ocupaciones si la agenda tiene algún turno ese día.
     public static boolean atiendeEseDia(LocalDate fecha, List<HorarioSemanal> agenda) {
         return !turnosDeLaAgenda(fecha, agenda).isEmpty();

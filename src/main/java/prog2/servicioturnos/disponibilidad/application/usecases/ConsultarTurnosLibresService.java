@@ -36,7 +36,7 @@ public class ConsultarTurnosLibresService implements ConsultarTurnosLibresUseCas
     @Override
     public TurnosLibresDelProfesional consultar(long profesionalId, LocalDate fecha) {
         Instant ahora = reloj.instant();
-        if (fecha.isBefore(LocalDate.ofInstant(ahora, propiedades.zonaHoraria()))) {
+        if (CalculadoraTurnosLibres.esFechaPasada(fecha, ahora, propiedades.zonaHoraria())) {
             throw new FechaPasadaException(fecha);
         }
         ProfesionalConAgenda profesional = catalogo.obtenerProfesional(profesionalId);
