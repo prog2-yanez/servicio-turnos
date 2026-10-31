@@ -34,6 +34,7 @@ import prog2.servicioturnos.disponibilidad.domain.exception.ProfesionalDeshabili
 import prog2.servicioturnos.disponibilidad.domain.exception.ProfesionalNoEncontradoException;
 import prog2.servicioturnos.disponibilidad.domain.model.HorarioSemanal;
 import prog2.servicioturnos.disponibilidad.domain.model.ProfesionalConAgenda;
+import prog2.servicioturnos.disponibilidad.domain.model.ProfesionalResumen;
 
 // El catálogo se simula: cada prueba define qué responde y se verifica cómo lo traduce turnos.
 class CatalogoRestAdapterTests {
@@ -41,6 +42,7 @@ class CatalogoRestAdapterTests {
     private static final String URL_BASE = "http://catalogo.test";
     private static final String URL_PROFESIONAL = URL_BASE + "/api/v1/profesionales/15";
     private static final String TOKEN = "token-de-prueba";
+    private static final String URL_LISTADO = URL_BASE + "/api/v1/profesionales?categoriaId=1&habilitado=true";
 
     private static final String PROFESIONAL = """
             {
@@ -150,6 +152,59 @@ class CatalogoRestAdapterTests {
         catalogo.expect(requestTo(URL_PROFESIONAL)).andRespond(withSuccess());
 
         assertThatThrownBy(() -> adaptador.obtenerProfesional(15)).isInstanceOf(CatalogoNoDisponibleException.class);
+    }
+
+    @Test
+    void listaLosHabilitadosDeLaCategoriaRecorriendoTodasLasPaginas() {
+        catalogo.expect(requestTo(URL_LISTADO + "&page=0&size=100"))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN))
+                .andRespond(withSuccess(pagina(0, 2, 15), MediaType.APPLICATION_JSON));
+        catalogo.expect(requestTo(URL_LISTADO + "&page=1&size=100"))
+                .andRespond(withSuccess(pagina(1, 2, 16), MediaType.APPLICATION_JSON));
+
+        assertThat(adaptador.listarHabilitados(1)).containsExactly(
+                new ProfesionalResumen(15, 1, "Ana", "Gomez"),
+                new ProfesionalResumen(16, 1, "Ana", "Gomez"));
+        catalogo.verify();
+    }
+
+    @Test
+    void unaCategoriaVaciaDevuelveUnaListaVacia() {
+        catalogo.expect(requestTo(URL_LISTADO + "&page=0&size=100")).andRespond(withSuccess("""
+                {"content": [], "page": {"size": 100, "number": 0, "totalElements": 0, "totalPages": 0}}
+                """, MediaType.APPLICATION_JSON));
+
+        assertThat(adaptador.listarHabilitados(1)).isEmpty();
+    }
+
+    @Test
+    void siElListadoFallaEsCatalogoNoDisponible() {
+        catalogo.expect(requestTo(URL_LISTADO + "&page=0&size=100"))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+
+        assertThatThrownBy(() -> adaptador.listarHabilitados(1)).isInstanceOf(CatalogoNoDisponibleException.class);
+    }
+
+    @Test
+    void siElListadoNoRespondeEsCatalogoNoDisponible() {
+        catalogo.expect(requestTo(URL_LISTADO + "&page=0&size=100"))
+                .andRespond(withException(new SocketTimeoutException("timeout")));
+
+        assertThatThrownBy(() -> adaptador.listarHabilitados(1)).isInstanceOf(CatalogoNoDisponibleException.class);
+    }
+
+    @Test
+    void siElListadoVieneSinCuerpoEsCatalogoNoDisponible() {
+        catalogo.expect(requestTo(URL_LISTADO + "&page=0&size=100")).andRespond(withSuccess());
+
+        assertThatThrownBy(() -> adaptador.listarHabilitados(1)).isInstanceOf(CatalogoNoDisponibleException.class);
+    }
+
+    private static String pagina(int numero, int totalPaginas, long idProfesional) {
+        return """
+                {"content": [{"id": %d, "categoriaId": 1, "nombre": "Ana", "apellido": "Gomez", "habilitado": true}],
+                 "page": {"size": 100, "number": %d, "totalElements": 2, "totalPages": %d}}
+                """.formatted(idProfesional, numero, totalPaginas);
     }
 
     private static void conUsuarioAutenticado() {
