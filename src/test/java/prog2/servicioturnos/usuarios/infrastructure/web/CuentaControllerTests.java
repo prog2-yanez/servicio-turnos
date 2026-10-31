@@ -15,10 +15,14 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
+import prog2.servicioturnos.usuarios.domain.exception.CredencialesInvalidasException;
 import prog2.servicioturnos.usuarios.domain.exception.LoginRepetidoException;
+import prog2.servicioturnos.usuarios.domain.model.Credenciales;
 import prog2.servicioturnos.usuarios.domain.model.DatosRegistro;
 import prog2.servicioturnos.usuarios.domain.model.TokenAcceso;
+import prog2.servicioturnos.usuarios.domain.ports.in.IniciarSesionUseCase;
 import prog2.servicioturnos.usuarios.domain.ports.in.RegistrarUsuarioUseCase;
+import prog2.servicioturnos.usuarios.infrastructure.web.dto.LoginRequest;
 import prog2.servicioturnos.usuarios.infrastructure.web.dto.RegistroRequest;
 
 @WebMvcTest(controllers = CuentaController.class)
@@ -29,6 +33,9 @@ class CuentaControllerTests {
 
     @MockitoBean
     private RegistrarUsuarioUseCase registrarUsuario;
+
+    @MockitoBean
+    private IniciarSesionUseCase iniciarSesion;
 
     @Test
     void registraYDevuelve201ConElToken() {
@@ -89,6 +96,53 @@ class CuentaControllerTests {
         RegistroRequest pedido = new RegistroRequest("ana", "secreta", null, null, "ana@mail.com", null, null);
 
         assertThat(pedido.toString()).doesNotContain("secreta").contains("****");
+    }
+
+    @Test
+    void conCredencialesCorrectasDevuelve200ConElToken() {
+        when(iniciarSesion.iniciar(new Credenciales("ana", "secreta")))
+                .thenReturn(new TokenAcceso("jwt-firmado", Instant.parse("2026-10-30T13:00:00Z")));
+
+        MvcTestResult resultado = iniciar("""
+                {"username": "ana", "password": "secreta", "rememberMe": true}
+                """);
+
+        assertThat(resultado).hasStatusOk();
+        assertThat(resultado).bodyJson().extractingPath("$.id_token").isEqualTo("jwt-firmado");
+    }
+
+    @Test
+    void conCredencialesIncorrectasDevuelve401() {
+        when(iniciarSesion.iniciar(any())).thenThrow(new CredencialesInvalidasException());
+
+        MvcTestResult resultado = iniciar("""
+                {"username": "ana", "password": "otra"}
+                """);
+
+        assertThat(resultado).hasStatus(HttpStatus.UNAUTHORIZED);
+        assertThat(resultado).bodyJson().extractingPath("$.type")
+                .isEqualTo("urn:turnos:error:credenciales-invalidas");
+    }
+
+    @Test
+    void unLoginSinDatosDevuelve400() {
+        MvcTestResult resultado = iniciar("{}");
+
+        assertThat(resultado).hasStatus(HttpStatus.BAD_REQUEST);
+        assertThat(resultado).bodyJson().extractingPath("$.detail").asString().contains("username", "password");
+        verifyNoInteractions(iniciarSesion);
+    }
+
+    @Test
+    void laContraseniaDelLoginNoApareceAlImprimirElPedido() {
+        assertThat(new LoginRequest("ana", "secreta").toString()).doesNotContain("secreta").contains("****");
+    }
+
+    private MvcTestResult iniciar(String cuerpo) {
+        return mvc.post().uri("/api/v1/cuenta/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpo)
+                .exchange();
     }
 
     private MvcTestResult registrar(String cuerpo) {

@@ -1,5 +1,6 @@
 package prog2.servicioturnos.usuarios.infrastructure.persistence;
 
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 import prog2.servicioturnos.usuarios.domain.model.Usuario;
 import prog2.servicioturnos.usuarios.domain.ports.out.UsuarioRepository;
@@ -30,5 +31,10 @@ public class UsuarioPersistenceAdapter implements UsuarioRepository {
     @Override
     public Usuario guardar(Usuario usuario) {
         return mapper.aDominio(usuarios.save(mapper.aEntidad(usuario)));
+    }
+
+    @Override
+    public Optional<Usuario> buscarPorLogin(String login) {
+        return usuarios.findByLogin(login).map(mapper::aDominio);
     }
 }
