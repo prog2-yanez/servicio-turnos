@@ -141,6 +141,22 @@ Con `token-invalido` la app tiene que volver a iniciar sesión.
 
 Todos los errores responden `application/problem+json` (RFC 7807) con `type`, `title`, `status`, `detail` e `instance`. El `type` es `urn:turnos:error:<codigo>`, por ejemplo `urn:turnos:error:datos-invalidos`. Ningún error muestra trazas ni datos internos.
 
+## Consulta al catálogo
+
+Turnos no guarda copia del catálogo. Cada vez que necesita los datos de un profesional se los pide al servicio de catálogo con `GET /api/v1/profesionales/{id}` (ADR 0002 del catálogo): el profesional, sus horarios semanales habilitados y la `versionCatalogo` con la que se validan los turnos.
+
+- En cada pedido se reenvía el JWT del usuario que lo originó (`Authorization: Bearer ...`), así el catálogo sabe quién hizo la consulta (ADR 0003).
+- Si el catálogo tarda más de 2 segundos en aceptar la conexión o más de 5 en responder, se corta el pedido. Se configura con `catalogo.api.timeout-conexion` y `catalogo.api.timeout-lectura`.
+- Si el catálogo no responde, la operación que lo necesita no se inicia.
+
+| Respuesta del catálogo | Respuesta de turnos | `type` |
+|---|---|---|
+| `200` | Sigue con los datos del profesional | — |
+| `404` | `404` | `profesional-no-encontrado` |
+| `409` | `409` | `profesional-deshabilitado` |
+| `401` o `403` | `503`, y queda un error en el log: la configuración entre los dos servicios no coincide (por ejemplo, `JWT_SECRETO` distinto) | `catalogo-no-disponible` |
+| Otro error, timeout o sin conexión | `503` | `catalogo-no-disponible` |
+
 ## Integración con la cátedra
 
 El servicio reserva turnos contra el servicio central de la cátedra por REST y Kafka. Usa la misma cuenta técnica que el servicio de catálogo: se da de alta una sola vez, a mano, y los dos servicios comparten el JWT técnico (contrato de integración, sección 2).

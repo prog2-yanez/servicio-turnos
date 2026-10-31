@@ -27,6 +27,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import prog2.servicioturnos.shared.exception.ConflictoException;
 import prog2.servicioturnos.shared.exception.NoAutenticadoException;
 import prog2.servicioturnos.shared.exception.RecursoNoEncontradoException;
+import prog2.servicioturnos.shared.exception.ServicioNoDisponibleException;
 
 // Traduce las excepciones a ProblemDetail (RFC 7807), con títulos y detalles en español.
 @RestControllerAdvice
@@ -80,6 +81,12 @@ public class ManejadorErroresApi extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ConflictoException.class)
     public ProblemDetail conflicto(ConflictoException e, HttpServletRequest pedido) {
         return problema(HttpStatus.CONFLICT, e.codigo(), "Conflicto", e.getMessage(), pedido);
+    }
+
+    // El motivo ya quedó en el log de quien lo detectó; al cliente solo se le dice que pruebe más tarde.
+    @ExceptionHandler(ServicioNoDisponibleException.class)
+    public ProblemDetail servicioNoDisponible(ServicioNoDisponibleException e, HttpServletRequest pedido) {
+        return problema(HttpStatus.SERVICE_UNAVAILABLE, e.codigo(), "Servicio no disponible", e.getMessage(), pedido);
     }
 
     // La traza queda solo en el log; al cliente no se le muestra nada interno.

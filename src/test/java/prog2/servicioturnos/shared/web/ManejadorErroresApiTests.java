@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import prog2.servicioturnos.shared.exception.ConflictoException;
 import prog2.servicioturnos.shared.exception.NoAutenticadoException;
 import prog2.servicioturnos.shared.exception.RecursoNoEncontradoException;
+import prog2.servicioturnos.shared.exception.ServicioNoDisponibleException;
 
 // Prueba solo cómo se traducen los errores; la seguridad tiene sus propias pruebas.
 @WebMvcTest(controllers = ManejadorErroresApiTests.ControladorDePrueba.class)
@@ -78,6 +79,14 @@ class ManejadorErroresApiTests {
         MvcTestResult resultado = mvc.get().uri("/prueba/conflicto").exchange();
 
         verificarProblema(resultado, HttpStatus.CONFLICT, "login-repetido", "/prueba/conflicto");
+    }
+
+    @Test
+    void servicioNoDisponibleDevuelve503ConSuPropioTipo() {
+        MvcTestResult resultado = mvc.get().uri("/prueba/no-disponible").exchange();
+
+        verificarProblema(resultado, HttpStatus.SERVICE_UNAVAILABLE, "catalogo-no-disponible", "/prueba/no-disponible");
+        assertThat(resultado).bodyJson().extractingPath("$.title").isEqualTo("Servicio no disponible");
     }
 
     @Test
@@ -186,6 +195,12 @@ class ManejadorErroresApiTests {
         }
     }
 
+    static class CatalogoDePruebaNoDisponibleException extends ServicioNoDisponibleException {
+        CatalogoDePruebaNoDisponibleException() {
+            super("catalogo-no-disponible", "El catálogo no está disponible en este momento");
+        }
+    }
+
     record UsuarioDePrueba(@NotBlank String login, @Email String email) {
     }
 
@@ -221,6 +236,11 @@ class ManejadorErroresApiTests {
         @GetMapping("/prueba/conflicto")
         String conflicto() {
             throw new LoginRepetidoException();
+        }
+
+        @GetMapping("/prueba/no-disponible")
+        String noDisponible() {
+            throw new CatalogoDePruebaNoDisponibleException();
         }
 
         @PostMapping("/prueba/usuarios")
