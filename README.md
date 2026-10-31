@@ -157,6 +157,36 @@ Turnos no guarda copia del catálogo. Cada vez que necesita los datos de un prof
 | `401` o `403` | `503`, y queda un error en el log: la configuración entre los dos servicios no coincide (por ejemplo, `JWT_SECRETO` distinto) | `catalogo-no-disponible` |
 | Otro error, timeout o sin conexión | `503` | `catalogo-no-disponible` |
 
+## Disponibilidad
+
+La disponibilidad (CU-03) junta la agenda vigente del catálogo con las ocupaciones de la cátedra. Disponible significa tener al menos un turno libre, como aclaró el profesor; por eso el filtro vive en turnos y no en el catálogo. Los dos endpoints exigen el JWT del usuario.
+
+| Endpoint | Qué devuelve |
+|---|---|
+| `GET /api/v1/disponibilidad/profesionales/{id}?fecha=2026-11-03` | Los turnos libres de un profesional en esa fecha |
+| `GET /api/v1/disponibilidad/profesionales?categoriaId=1&fecha=2026-11-03` | Los profesionales habilitados de la categoría con al menos un turno libre, y cuántos tiene cada uno |
+
+```json
+{
+  "profesionalId": 15,
+  "fecha": "2026-11-03",
+  "versionCatalogo": 7,
+  "turnos": [{ "horaInicio": "09:00", "horaFin": "09:30" }]
+}
+```
+
+Cómo se arman los turnos libres:
+
+1. Se pide al catálogo el profesional con su agenda.
+2. Los horarios del día de la semana de la fecha se parten en turnos de `duracionTurnoMinutos`. Si sobra un pedazo que no llega a un turno entero, no se ofrece.
+3. Se piden a la cátedra las ocupaciones de ese día y se quitan los turnos `CONFIRMED` y los `HELD` vigentes. Un `HELD` cuyo `expiresAt` ya pasó cuenta como libre.
+4. Se quitan los turnos que ya empezaron, comparando con la hora actual en `turnos.zona-horaria` (por defecto `America/Argentina/Buenos_Aires`), porque los horarios de la agenda son hora local.
+
+- Si el profesional no atiende ese día de la semana, la lista viene vacía y no se le pregunta a la cátedra.
+- Una fecha anterior a hoy responde `400` (`fecha-pasada`). Hoy se puede consultar: solo aparecen los turnos que todavía no empezaron.
+- Un profesional inexistente responde `404` y uno deshabilitado `409`. Si el catálogo o la cátedra no responden, `503`.
+- En el filtro, los profesionales de la categoría se leen de todas las páginas del catálogo. Si alguno se deshabilita o desaparece mientras se arma la lista, no se muestra. Si el catálogo o la cátedra no responden, falla toda la búsqueda: una lista parcial haría creer que los que faltan no tienen turnos.
+
 ## Integración con la cátedra
 
 El servicio reserva turnos contra el servicio central de la cátedra por REST y Kafka. Usa la misma cuenta técnica que el servicio de catálogo: se da de alta una sola vez, a mano, y los dos servicios comparten el JWT técnico (contrato de integración, sección 2).
