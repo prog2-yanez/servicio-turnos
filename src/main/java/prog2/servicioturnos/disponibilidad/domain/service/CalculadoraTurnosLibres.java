@@ -49,7 +49,7 @@ public final class CalculadoraTurnosLibres {
 
     private static List<TurnoLibre> turnosDeLaAgenda(LocalDate fecha, List<HorarioSemanal> agenda) {
         return agenda.stream()
-                .filter(horario -> horario.diaSemana() == fecha.getDayOfWeek())
+                .filter(horario -> fecha.getDayOfWeek().equals(horario.diaSemana()))
                 .filter(horario -> horario.duracionTurnoMinutos() > 0)
                 .flatMap(horario -> partir(horario).stream())
                 .toList();
