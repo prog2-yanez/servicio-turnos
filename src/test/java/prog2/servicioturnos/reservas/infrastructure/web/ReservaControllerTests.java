@@ -35,6 +35,7 @@ import prog2.servicioturnos.reservas.domain.model.ProcesoReserva;
 import prog2.servicioturnos.reservas.domain.ports.in.ConsultarProcesoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.EnviarTelefonoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.IniciarReservaUseCase;
+import prog2.servicioturnos.reservas.domain.ports.in.ListarReservasPropiasUseCase;
 
 @WebMvcTest(controllers = ReservaController.class)
 @Import({SecurityConfig.class, JwtConfig.class})
@@ -56,6 +57,9 @@ class ReservaControllerTests {
 
     @MockitoBean
     private ConsultarProcesoUseCase consultarProceso;
+
+    @MockitoBean
+    private ListarReservasPropiasUseCase listarReservas;
 
     @Test
     void esperandoElTelefonoResponde201ConElProcesoSinLosIdsDeLaCatedra() {

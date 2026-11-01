@@ -16,9 +16,11 @@ import prog2.servicioturnos.reservas.domain.model.ProcesoReserva;
 import prog2.servicioturnos.reservas.domain.ports.in.ConsultarProcesoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.EnviarTelefonoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.IniciarReservaUseCase;
+import prog2.servicioturnos.reservas.domain.ports.in.ListarReservasPropiasUseCase;
 import prog2.servicioturnos.reservas.infrastructure.web.dto.EnviarTelefonoRequest;
 import prog2.servicioturnos.reservas.infrastructure.web.dto.IniciarReservaRequest;
 import prog2.servicioturnos.reservas.infrastructure.web.dto.ProcesoReservaResponse;
+import prog2.servicioturnos.reservas.infrastructure.web.dto.ReservasPropiasResponse;
 
 @RestController
 @RequestMapping("/api/v1/reservas")
@@ -27,12 +29,20 @@ public class ReservaController {
     private final IniciarReservaUseCase iniciarReserva;
     private final EnviarTelefonoUseCase enviarTelefono;
     private final ConsultarProcesoUseCase consultarProceso;
+    private final ListarReservasPropiasUseCase listarReservas;
 
     public ReservaController(IniciarReservaUseCase iniciarReserva, EnviarTelefonoUseCase enviarTelefono,
-            ConsultarProcesoUseCase consultarProceso) {
+            ConsultarProcesoUseCase consultarProceso, ListarReservasPropiasUseCase listarReservas) {
         this.iniciarReserva = iniciarReserva;
         this.enviarTelefono = enviarTelefono;
         this.consultarProceso = consultarProceso;
+        this.listarReservas = listarReservas;
+    }
+
+    // Si la cátedra no responde se contesta 200 igual, con lo guardado en turnos y desactualizado = true.
+    @GetMapping
+    public ReservasPropiasResponse misReservas(@AuthenticationPrincipal Jwt token) {
+        return ReservasPropiasResponse.desde(listarReservas.listar(token.getSubject()));
     }
 
     @GetMapping("/{id}")
