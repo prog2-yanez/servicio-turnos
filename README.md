@@ -234,6 +234,42 @@ Cada paso se guarda apenas ocurre, sin una transacción que los agrupe: si la c�
 - **No se cancela un hold:** si el usuario se arrepiente antes de mandar el teléfono, el hold se deja vencer y el proceso termina como `VENCIDO`. Guardar `venceEn` no extiende el hold.
 - Los identificadores de la cátedra (`holdId`, `reservationProcessId`) no se le muestran a la app.
 
+### Enviar el teléfono
+
+Después de la confirmación inicial, la cátedra pide el teléfono del paciente por Kafka (CU-05):
+
+```
+cátedra ──AdditionalInformationRequested──▶ turnos      (topic de acciones)
+app ──POST /api/v1/reservas/{id}/telefono──▶ turnos
+turnos ──AdditionalInformationSubmitted──▶ cátedra      (topic de teléfono, key = reservationProcessId)
+cátedra ──AdditionalInformationRejected──▶ turnos       (si el teléfono no sirve; se puede corregir)
+```
+
+1. Al recibir `AdditionalInformationRequested`, turnos busca el proceso por `reservationProcessId`, guarda el `eventId` del pedido y el nuevo `expiresAt`, y lo deja `ESPERANDO_TELEFONO`. Si el proceso estaba `INCIERTO`, el pedido demuestra que la confirmación llegó a la cátedra.
+2. La app manda el teléfono:
+
+   ```json
+   { "telefono": "+54 261 555-1234" }
+   ```
+
+3. Turnos controla que el proceso sea del usuario del token, que esté esperando el teléfono y que no haya vencido. Le saca espacios, guiones, paréntesis y puntos y valida el formato de la cátedra: `^\+?[0-9]{7,15}$`.
+4. Publica `AdditionalInformationSubmitted` con un `eventId` nuevo, el `eventId` del pedido como `requestEventId` y `CATEDRA_GROUP_ID` como `groupId`. La message key es el `reservationProcessId`, así todos los eventos de un proceso llegan en orden. Espera hasta 10 segundos a que Kafka confirme el envío y recién ahí marca el proceso `TELEFONO_ENVIADO`.
+5. Si llega `AdditionalInformationRejected`, el proceso pasa a `TELEFONO_RECHAZADO` y el usuario puede corregir el teléfono y mandarlo otra vez, con otro `eventId`, hasta que venza.
+
+| Caso | Respuesta |
+|---|---|
+| Teléfono publicado | `202` con el proceso en `TELEFONO_ENVIADO` |
+| El proceso no existe o es de otro usuario | `404 proceso-no-encontrado` |
+| El proceso no está esperando el teléfono | `409 telefono-no-pedido` |
+| Ya pasó `venceEn` | se marca `VENCIDO` y responde `409 proceso-vencido` |
+| Formato inválido | `400 telefono-invalido` |
+| Kafka no confirma el envío | `503 mensajeria-no-disponible`; el proceso no cambia y se puede reintentar |
+
+- **El teléfono no se guarda en turnos:** es un dato personal que solo necesita la cátedra. Tampoco aparece en el log.
+- Un proceso de otro usuario responde `404`, no `403`, para no revelar que existe.
+- Un evento que no corresponde (proceso desconocido, ya terminado o en otro paso) se deja en el log y no se aplica: un evento tardío no reabre un proceso cerrado. Los eventos con resultado (`AppointmentConfirmed`, etc.) todavía no se procesan.
+- El listener solo se crea si `CATEDRA_KAFKA_BOOTSTRAP_SERVERS`, `CATEDRA_KAFKA_CONSUMER_GROUP` y `CATEDRA_KAFKA_TOPIC_ACCIONES` están configuradas. Si falla al procesar un evento, se reintenta 3 veces con 5 segundos de espera; el offset se confirma recién cuando el evento se procesó.
+
 ### Estados de un proceso
 
 | Estado | Cuándo | ¿Es final? |
@@ -265,6 +301,7 @@ La respuesta del alta (`POST /api/student/register`) o de `GET /api/student/inte
 | `CATEDRA_KAFKA_CONSUMER_GROUP` | `integration.kafkaConsumerGroupId` |
 | `CATEDRA_KAFKA_TOPIC_ACCIONES` | `integration.kafkaAppointmentActionsTopic` (eventos que publica la cátedra sobre cada reserva) |
 | `CATEDRA_KAFKA_TOPIC_TELEFONO` | `integration.kafkaAppointmentPhoneTopic` (donde turnos publica el teléfono del paciente) |
+| `CATEDRA_GROUP_ID` | `integration.groupId` (va en cada evento que publica turnos) |
 
 - Estos valores son credenciales: van solo en `.env` y nunca en el código, en los logs ni en este README.
 - El JWT técnico lo usa solo el backend para hablar con la cátedra; nunca llega a la app.

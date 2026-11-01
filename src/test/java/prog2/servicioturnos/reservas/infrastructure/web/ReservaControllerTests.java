@@ -23,11 +23,15 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import prog2.servicioturnos.config.JwtConfig;
 import prog2.servicioturnos.config.SecurityConfig;
 import prog2.servicioturnos.reservas.domain.exception.DatosDeCuentaIncompletosException;
+import prog2.servicioturnos.reservas.domain.exception.ProcesoNoEncontradoException;
 import prog2.servicioturnos.reservas.domain.exception.ProcesoAbiertoException;
+import prog2.servicioturnos.reservas.domain.exception.TelefonoInvalidoException;
+import prog2.servicioturnos.reservas.domain.exception.TelefonoNoPedidoException;
 import prog2.servicioturnos.reservas.domain.exception.TurnoOcupadoException;
 import prog2.servicioturnos.reservas.domain.model.EstadoProceso;
 import prog2.servicioturnos.reservas.domain.model.PedidoReserva;
 import prog2.servicioturnos.reservas.domain.model.ProcesoReserva;
+import prog2.servicioturnos.reservas.domain.ports.in.EnviarTelefonoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.IniciarReservaUseCase;
 
 @WebMvcTest(controllers = ReservaController.class)
@@ -44,6 +48,9 @@ class ReservaControllerTests {
 
     @MockitoBean
     private IniciarReservaUseCase iniciarReserva;
+
+    @MockitoBean
+    private EnviarTelefonoUseCase enviarTelefono;
 
     @Test
     void esperandoElTelefonoResponde201ConElProcesoSinLosIdsDeLaCatedra() {
@@ -109,6 +116,50 @@ class ReservaControllerTests {
         verificarProblema(reservar(CUERPO), HttpStatus.BAD_REQUEST, "datos-de-cuenta-incompletos");
     }
 
+    @Test
+    void elTelefonoEnviadoResponde202ConElProceso() {
+        when(enviarTelefono.enviar("ana", 100, "+54 261 555-1234"))
+                .thenReturn(proceso(EstadoProceso.TELEFONO_ENVIADO));
+
+        MvcTestResult resultado = mandarTelefono(100, "{\"telefono\": \"+54 261 555-1234\"}");
+
+        assertThat(resultado).hasStatus(HttpStatus.ACCEPTED);
+        assertThat(resultado).bodyJson().extractingPath("$.estado").isEqualTo("TELEFONO_ENVIADO");
+    }
+
+    @Test
+    void sinTelefonoResponde400SinLlamarAlCasoDeUso() {
+        verificarProblema(mandarTelefono(100, "{\"telefono\": \" \"}"), HttpStatus.BAD_REQUEST, "datos-invalidos");
+        verifyNoInteractions(enviarTelefono);
+    }
+
+    @Test
+    void losErroresDelTelefonoSeTraducenASuStatus() {
+        when(enviarTelefono.enviar("ana", 999, "2615551234")).thenThrow(new ProcesoNoEncontradoException(999));
+        when(enviarTelefono.enviar("ana", 101, "2615551234")).thenThrow(new TelefonoNoPedidoException());
+        when(enviarTelefono.enviar("ana", 100, "123")).thenThrow(new TelefonoInvalidoException());
+
+        verificarProblema(mandarTelefono(999, "{\"telefono\": \"2615551234\"}"),
+                HttpStatus.NOT_FOUND, "proceso-no-encontrado");
+        verificarProblema(mandarTelefono(101, "{\"telefono\": \"2615551234\"}"),
+                HttpStatus.CONFLICT, "telefono-no-pedido");
+        verificarProblema(mandarTelefono(100, "{\"telefono\": \"123\"}"), HttpStatus.BAD_REQUEST, "telefono-invalido");
+    }
+
+    @Test
+    void mandarElTelefonoSinTokenResponde401() {
+        MvcTestResult resultado = mvc.post().uri("/api/v1/reservas/100/telefono")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"telefono\": \"2615551234\"}").exchange();
+
+        assertThat(resultado).hasStatus(HttpStatus.UNAUTHORIZED);
+        verifyNoInteractions(enviarTelefono);
+    }
+
+    private MvcTestResult mandarTelefono(long id, String cuerpo) {
+        return mvc.post().uri("/api/v1/reservas/" + id + "/telefono").with(usuario())
+                .contentType(MediaType.APPLICATION_JSON).content(cuerpo).exchange();
+    }
+
     private MvcTestResult reservar(String cuerpo) {
         return mvc.post().uri("/api/v1/reservas").with(usuario())
                 .contentType(MediaType.APPLICATION_JSON).content(cuerpo).exchange();
@@ -116,7 +167,7 @@ class ReservaControllerTests {
 
     private static ProcesoReserva proceso(EstadoProceso estado) {
         return new ProcesoReserva(100L, 4, 15, LocalDate.of(2026, 11, 3), LocalTime.of(9, 0), 7, estado, "h-77",
-                "rp-9", Instant.parse("2026-11-02T12:15:00Z"), Instant.parse("2026-11-02T12:00:00Z"),
+                "rp-9", null, Instant.parse("2026-11-02T12:15:00Z"), Instant.parse("2026-11-02T12:00:00Z"),
                 Instant.parse("2026-11-02T12:00:05Z"));
     }
 

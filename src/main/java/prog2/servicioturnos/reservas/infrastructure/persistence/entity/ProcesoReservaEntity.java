@@ -52,6 +52,9 @@ public class ProcesoReservaEntity {
     @Column(name = "reservation_process_id", length = 100, unique = true)
     private String reservationProcessId;
 
+    @Column(name = "request_event_id", length = 100)
+    private String requestEventId;
+
     @Column(name = "vence_en")
     private Instant venceEn;
 

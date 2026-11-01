@@ -2,6 +2,7 @@ package prog2.servicioturnos.reservas.infrastructure.persistence;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import prog2.servicioturnos.reservas.domain.exception.ProcesoAbiertoException;
@@ -30,6 +31,16 @@ public class ProcesoReservaPersistenceAdapter implements ProcesoReservaRepositor
     @Override
     public boolean tieneProcesoAbierto(long usuarioId) {
         return procesos.existsByUsuarioIdAndEstadoIn(usuarioId, ABIERTOS);
+    }
+
+    @Override
+    public Optional<ProcesoReserva> buscarPorId(long id) {
+        return procesos.findById(id).map(mapper::aDominio);
+    }
+
+    @Override
+    public Optional<ProcesoReserva> buscarPorReservationProcessId(String reservationProcessId) {
+        return procesos.findByReservationProcessId(reservationProcessId).map(mapper::aDominio);
     }
 
     // saveAndFlush hace que el índice único se controle acá y no al final de una transacción más grande.

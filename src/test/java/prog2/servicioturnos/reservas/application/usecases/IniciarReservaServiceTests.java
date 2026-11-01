@@ -16,9 +16,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -28,6 +26,7 @@ import prog2.servicioturnos.disponibilidad.domain.exception.ProfesionalDeshabili
 import prog2.servicioturnos.disponibilidad.domain.model.TurnoLibre;
 import prog2.servicioturnos.disponibilidad.domain.model.TurnosLibresDelProfesional;
 import prog2.servicioturnos.disponibilidad.domain.ports.in.ConsultarTurnosLibresUseCase;
+import prog2.servicioturnos.reservas.RepositorioProcesosEnMemoria;
 import prog2.servicioturnos.reservas.domain.exception.DatosDeCuentaIncompletosException;
 import prog2.servicioturnos.reservas.domain.exception.ProcesoAbiertoException;
 import prog2.servicioturnos.reservas.domain.exception.ProcesoVencidoException;
@@ -42,7 +41,6 @@ import prog2.servicioturnos.reservas.domain.model.PedidoReserva;
 import prog2.servicioturnos.reservas.domain.model.ProcesoReserva;
 import prog2.servicioturnos.reservas.domain.ports.out.CuentasPacientes;
 import prog2.servicioturnos.reservas.domain.ports.out.HoldsCatedra;
-import prog2.servicioturnos.reservas.domain.ports.out.ProcesoReservaRepository;
 
 class IniciarReservaServiceTests {
 
@@ -56,7 +54,7 @@ class IniciarReservaServiceTests {
     private final CuentasPacientes cuentas = mock(CuentasPacientes.class);
     private final ConsultarTurnosLibresUseCase turnosLibres = mock(ConsultarTurnosLibresUseCase.class);
     private final HoldsCatedra holds = mock(HoldsCatedra.class);
-    private final RepositorioEnMemoria procesos = new RepositorioEnMemoria();
+    private final RepositorioProcesosEnMemoria procesos = new RepositorioProcesosEnMemoria();
     private final IniciarReservaService servicio =
             new IniciarReservaService(cuentas, procesos, turnosLibres, holds, RELOJ);
 
@@ -81,9 +79,9 @@ class IniciarReservaServiceTests {
         assertThat(proceso.reservationProcessId()).isEqualTo("rp-9");
         assertThat(proceso.venceEn()).isEqualTo(VENCE_CONFIRMADO);
         // Se guardó INICIADO antes de la cátedra, después con el hold y por último esperando el teléfono.
-        assertThat(procesos.historial).extracting(ProcesoReserva::estado).containsExactly(
+        assertThat(procesos.historial()).extracting(ProcesoReserva::estado).containsExactly(
                 EstadoProceso.INICIADO, EstadoProceso.INICIADO, EstadoProceso.ESPERANDO_TELEFONO);
-        assertThat(procesos.historial.get(0).holdId()).isNull();
+        assertThat(procesos.historial().get(0).holdId()).isNull();
     }
 
     @Test
@@ -91,16 +89,16 @@ class IniciarReservaServiceTests {
         when(cuentas.obtener("ana")).thenReturn(new Paciente(4, "Ana", null));
 
         assertThatThrownBy(() -> servicio.iniciar("ana", PEDIDO)).isInstanceOf(DatosDeCuentaIncompletosException.class);
-        assertThat(procesos.historial).isEmpty();
+        assertThat(procesos.historial()).isEmpty();
         verifyNoInteractions(holds, turnosLibres);
     }
 
     @Test
     void conUnProcesoAbiertoResponde409SinTocarNada() {
-        procesos.abierto = true;
+        procesos.conProcesoAbierto();
 
         assertThatThrownBy(() -> servicio.iniciar("ana", PEDIDO)).isInstanceOf(ProcesoAbiertoException.class);
-        assertThat(procesos.historial).isEmpty();
+        assertThat(procesos.historial()).isEmpty();
         verifyNoInteractions(holds, turnosLibres);
     }
 
@@ -109,7 +107,7 @@ class IniciarReservaServiceTests {
         PedidoReserva otraHora = new PedidoReserva(15, MARTES, LocalTime.of(10, 0));
 
         assertThatThrownBy(() -> servicio.iniciar("ana", otraHora)).isInstanceOf(TurnoNoDisponibleException.class);
-        assertThat(procesos.historial).isEmpty();
+        assertThat(procesos.historial()).isEmpty();
         verifyNoInteractions(holds);
     }
 
@@ -119,7 +117,7 @@ class IniciarReservaServiceTests {
 
         assertThatThrownBy(() -> servicio.iniciar("ana", PEDIDO))
                 .isInstanceOf(ProfesionalDeshabilitadoException.class);
-        assertThat(procesos.historial).isEmpty();
+        assertThat(procesos.historial()).isEmpty();
     }
 
     static List<RuntimeException> rechazosDelHold() {
@@ -167,32 +165,5 @@ class IniciarReservaServiceTests {
         assertThat(proceso.estado()).isEqualTo(EstadoProceso.INCIERTO);
         assertThat(proceso.holdId()).isEqualTo("h-77");
         assertThat(proceso.reservationProcessId()).isEqualTo("rp-9");
-    }
-
-    // Guarda en memoria y recuerda cada versión guardada, para ver el orden de los pasos.
-    private static final class RepositorioEnMemoria implements ProcesoReservaRepository {
-
-        private final List<ProcesoReserva> historial = new ArrayList<>();
-        private final AtomicLong ids = new AtomicLong(100);
-        private boolean abierto;
-
-        @Override
-        public boolean tieneProcesoAbierto(long usuarioId) {
-            return abierto;
-        }
-
-        @Override
-        public ProcesoReserva guardar(ProcesoReserva proceso) {
-            ProcesoReserva guardado = proceso.id() != null ? proceso : new ProcesoReserva(ids.incrementAndGet(),
-                    proceso.usuarioId(), proceso.profesionalId(), proceso.fecha(), proceso.horaInicio(),
-                    proceso.versionCatalogo(), proceso.estado(), proceso.holdId(), proceso.reservationProcessId(),
-                    proceso.venceEn(), proceso.creadoEn(), proceso.actualizadoEn());
-            historial.add(guardado);
-            return guardado;
-        }
-
-        private ProcesoReserva ultimo() {
-            return historial.getLast();
-        }
     }
 }
