@@ -36,7 +36,7 @@ public class EnviarTelefonoService implements EnviarTelefonoUseCase {
     public ProcesoReserva enviar(String login, long procesoId, String telefono) {
         long usuarioId = cuentas.obtener(login).usuarioId();
         ProcesoReserva proceso = procesos.buscarPorId(procesoId)
-                .filter(encontrado -> encontrado.usuarioId() == usuarioId)
+                .filter(encontrado -> encontrado.esDe(usuarioId))
                 .orElseThrow(() -> new ProcesoNoEncontradoException(procesoId));
         if (!proceso.puedeEnviarTelefono()) {
             throw new TelefonoNoPedidoException();

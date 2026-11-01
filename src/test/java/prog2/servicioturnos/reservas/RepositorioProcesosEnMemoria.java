@@ -40,6 +40,14 @@ public final class RepositorioProcesosEnMemoria implements ProcesoReservaReposit
     }
 
     @Override
+    public Optional<ProcesoReserva> buscarAbiertoDe(long usuarioId) {
+        return historial.reversed().stream()
+                .map(proceso -> buscarPorId(proceso.id()).orElseThrow())
+                .filter(proceso -> proceso.esDe(usuarioId) && proceso.estaAbierto())
+                .findFirst();
+    }
+
+    @Override
     public Optional<ProcesoReserva> buscarPorReservationProcessId(String reservationProcessId) {
         return ultimaVersion(proceso -> reservationProcessId.equals(proceso.reservationProcessId()));
     }

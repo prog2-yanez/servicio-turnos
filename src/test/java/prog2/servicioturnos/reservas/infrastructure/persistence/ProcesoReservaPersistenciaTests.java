@@ -82,6 +82,20 @@ class ProcesoReservaPersistenciaTests {
         assertThat(procesos.guardar(nuevo("09:30")).id()).isNotNull();
     }
 
+    @Test
+    void buscaElProcesoPorIdYElAbiertoDelUsuario() {
+        ProcesoReserva terminado = procesos.guardar(nuevo("09:00"));
+        procesos.guardar(terminado.rechazado(AHORA));
+        ProcesoReserva abierto = procesos.guardar(nuevo("09:30"));
+
+        assertThat(procesos.buscarPorId(terminado.id())).get()
+                .extracting(ProcesoReserva::estado).isEqualTo(EstadoProceso.RECHAZADO);
+        assertThat(procesos.buscarAbiertoDe(usuarioId)).get()
+                .extracting(ProcesoReserva::id).isEqualTo(abierto.id());
+        assertThat(procesos.buscarAbiertoDe(usuarioId + 1000)).isEmpty();
+        assertThat(procesos.buscarPorId(-1)).isEmpty();
+    }
+
     private ProcesoReserva nuevo(String hora) {
         return ProcesoReserva.iniciar(usuarioId, 15, LocalDate.of(2026, 11, 3), LocalTime.parse(hora), 7, AHORA);
     }

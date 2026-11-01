@@ -222,10 +222,13 @@ Cada paso se guarda apenas ocurre, sin una transacción que los agrupe: si la c�
 {
   "id": 100,
   "estado": "ESPERANDO_TELEFONO",
+  "abierto": true,
   "profesionalId": 15,
   "fecha": "2026-11-03",
   "horaInicio": "09:00",
-  "venceEn": "2026-11-02T12:15:00Z"
+  "venceEn": "2026-11-02T12:15:00Z",
+  "motivo": null,
+  "puedeEnviarTelefono": false
 }
 ```
 
@@ -286,6 +289,35 @@ La cátedra informa el resultado final de cada proceso por el topic de acciones 
   - `CONFIRMADO` → `CANCELADO`: cancelar una reserva confirmada es avanzar.
   - `VENCIDO` → `CONFIRMADO`, solo si la cátedra confirma un proceso que turnos había dado por vencido por su cuenta (comparando con `venceEn`). La cátedra tiene la última palabra: si confirmó, el turno existe.
 - **Eventos fuera de orden:** cada evento se aplica solo si tiene sentido en el estado actual. Un vencimiento que llega después de la confirmación no la deshace; una cancelación que llega antes que la confirmación gana.
+
+### Consultar un proceso
+
+La app consulta en qué paso está su reserva (CU-07), por ejemplo después de un `202` o mientras espera el resultado:
+
+| Endpoint | Qué devuelve |
+|---|---|
+| `GET /api/v1/reservas/{id}` | El proceso con ese id |
+| `GET /api/v1/reservas/en-curso` | El único proceso abierto del usuario, para retomarlo si la app se cerró y no tiene el id |
+
+```json
+{
+  "id": 100,
+  "estado": "TELEFONO_RECHAZADO",
+  "abierto": true,
+  "profesionalId": 15,
+  "fecha": "2026-11-03",
+  "horaInicio": "09:00",
+  "venceEn": "2026-11-02T12:20:00Z",
+  "motivo": null,
+  "puedeEnviarTelefono": true
+}
+```
+
+- `venceEn` aparece solo mientras el proceso sigue abierto; en uno terminado es `null`.
+- `motivo` es el que informó la cátedra al invalidar o cancelar.
+- `abierto` y `puedeEnviarTelefono` le dicen a la app qué puede hacer, sin que tenga que repetir las reglas de los estados.
+- Un usuario solo ve sus propios procesos: uno ajeno responde `404 proceso-no-encontrado`, igual que uno inexistente, para no revelar que existe. Sin proceso abierto, `en-curso` responde `404 sin-proceso-en-curso`.
+- La respuesta es la misma que devuelven `POST /api/v1/reservas` y `POST /api/v1/reservas/{id}/telefono`. Nunca incluye los identificadores de la cátedra.
 
 ### Estados de un proceso
 
