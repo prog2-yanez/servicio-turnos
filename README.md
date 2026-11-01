@@ -319,6 +319,35 @@ La app consulta en qué paso está su reserva (CU-07), por ejemplo después de u
 - Un usuario solo ve sus propios procesos: uno ajeno responde `404 proceso-no-encontrado`, igual que uno inexistente, para no revelar que existe. Sin proceso abierto, `en-curso` responde `404 sin-proceso-en-curso`.
 - La respuesta es la misma que devuelven `POST /api/v1/reservas` y `POST /api/v1/reservas/{id}/telefono`. Nunca incluye los identificadores de la cátedra.
 
+### Mis reservas
+
+`GET /api/v1/reservas` devuelve las reservas del usuario (CU-08), combinando lo que guarda turnos con lo que informa la cátedra (`GET /api/appointments`, contrato, sección 11).
+
+```json
+{
+  "reservas": [
+    {
+      "procesoId": 100,
+      "estado": "CONFIRMADO",
+      "fecha": "2026-11-03",
+      "horaInicio": "09:00",
+      "horaFin": "09:30",
+      "profesional": { "id": 15, "nombre": "Ana", "apellido": "Gomez" },
+      "confirmadaEn": "2026-11-02T12:05:00Z",
+      "canceladaEn": null,
+      "motivoCancelacion": null
+    }
+  ],
+  "desactualizado": false
+}
+```
+
+- **Aislamiento entre usuarios:** la cátedra solo conoce la cuenta técnica, así que guarda juntas las reservas de todos los usuarios de turnos. Turnos le pide las del usuario (`externalPatientId`) y además vuelve a filtrar cada reserva que recibe: aunque la cátedra mande una ajena, nunca se muestra.
+- **Qué se lista:** solo reservas de verdad, las que la cátedra registró (esperando el teléfono, confirmadas o canceladas). Los procesos que nunca llegaron a ser reserva no aparecen; el proceso en curso se consulta con `/en-curso`.
+- **Cómo se combinan:** por `reservationProcessId`. Si turnos y la cátedra no coinciden, se muestra lo de la cátedra, sin cambiar la base (eso lo corrige la recuperación). Mientras se espera el teléfono se muestra el paso local, que es más preciso. Una reserva que solo conoce la cátedra sale con `procesoId: null`; una que solo conoce turnos sale sin nombre del profesional ni hora de fin.
+- **Si la cátedra no responde:** se responde `200` igual, con lo guardado en turnos y `"desactualizado": true`, para que la app avise que puede faltar algo reciente.
+- Nunca se muestran los identificadores de la cátedra ni el nombre y teléfono del paciente que devuelve la cátedra.
+
 ### Estados de un proceso
 
 | Estado | Cuándo | ¿Es final? |
