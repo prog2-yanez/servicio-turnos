@@ -167,7 +167,7 @@ class ReservaControllerTests {
 
     private static ProcesoReserva proceso(EstadoProceso estado) {
         return new ProcesoReserva(100L, 4, 15, LocalDate.of(2026, 11, 3), LocalTime.of(9, 0), 7, estado, "h-77",
-                "rp-9", null, Instant.parse("2026-11-02T12:15:00Z"), Instant.parse("2026-11-02T12:00:00Z"),
+                "rp-9", null, null, null, Instant.parse("2026-11-02T12:15:00Z"), Instant.parse("2026-11-02T12:00:00Z"),
                 Instant.parse("2026-11-02T12:00:05Z"));
     }
 

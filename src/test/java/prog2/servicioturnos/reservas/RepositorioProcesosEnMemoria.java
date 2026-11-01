@@ -49,7 +49,8 @@ public final class RepositorioProcesosEnMemoria implements ProcesoReservaReposit
         ProcesoReserva guardado = proceso.id() != null ? proceso : new ProcesoReserva(ids.incrementAndGet(),
                 proceso.usuarioId(), proceso.profesionalId(), proceso.fecha(), proceso.horaInicio(),
                 proceso.versionCatalogo(), proceso.estado(), proceso.holdId(), proceso.reservationProcessId(),
-                proceso.requestEventId(), proceso.venceEn(), proceso.creadoEn(), proceso.actualizadoEn());
+                proceso.requestEventId(), proceso.reservationId(), proceso.motivo(), proceso.venceEn(),
+                proceso.creadoEn(), proceso.actualizadoEn());
         historial.add(guardado);
         return guardado;
     }

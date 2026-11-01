@@ -7,11 +7,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
+import java.util.HashSet;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import prog2.servicioturnos.reservas.RepositorioProcesosEnMemoria;
 import prog2.servicioturnos.reservas.domain.model.EstadoProceso;
 import prog2.servicioturnos.reservas.domain.model.EventoCatedra;
 import prog2.servicioturnos.reservas.domain.model.ProcesoReserva;
+import prog2.servicioturnos.reservas.domain.ports.out.EventosProcesados;
 
 class ProcesarAccionesCatedraServiceTests {
 
@@ -19,14 +22,16 @@ class ProcesarAccionesCatedraServiceTests {
     private static final Instant VENCE = Instant.parse("2026-11-02T12:10:00Z");
 
     private final RepositorioProcesosEnMemoria procesos = new RepositorioProcesosEnMemoria();
+    private final Set<String> registrados = new HashSet<>();
+    private final EventosProcesados eventosProcesados = (eventId, tipo) -> registrados.add(eventId);
     private final ProcesarAccionesCatedraService servicio =
-            new ProcesarAccionesCatedraService(procesos, Clock.fixed(AHORA, ZoneOffset.UTC));
+            new ProcesarAccionesCatedraService(procesos, eventosProcesados, Clock.fixed(AHORA, ZoneOffset.UTC));
 
     @Test
     void elPedidoDeTelefonoDejaElProcesoEsperandoConElEventId() {
         procesos.guardar(esperandoTelefono());
 
-        servicio.telefonoPedido(new EventoCatedra("ev-1", "rp-9", VENCE));
+        servicio.telefonoPedido(pedido("ev-1", "rp-9"));
 
         assertThat(procesos.ultimo().estado()).isEqualTo(EstadoProceso.ESPERANDO_TELEFONO);
         assertThat(procesos.ultimo().requestEventId()).isEqualTo("ev-1");
@@ -36,7 +41,7 @@ class ProcesarAccionesCatedraServiceTests {
     void unEventoDeUnProcesoDesconocidoSeIgnora() {
         procesos.guardar(esperandoTelefono());
 
-        servicio.telefonoPedido(new EventoCatedra("ev-1", "otro", VENCE));
+        servicio.telefonoPedido(pedido("ev-1", "otro"));
 
         assertThat(procesos.historial()).hasSize(1);
     }
@@ -45,7 +50,7 @@ class ProcesarAccionesCatedraServiceTests {
     void unEventoTardioNoReabreUnProcesoTerminado() {
         procesos.guardar(esperandoTelefono().vencido(AHORA));
 
-        servicio.telefonoPedido(new EventoCatedra("ev-1", "rp-9", VENCE));
+        servicio.telefonoPedido(pedido("ev-1", "rp-9"));
 
         assertThat(procesos.historial()).hasSize(1);
         assertThat(procesos.ultimo().estado()).isEqualTo(EstadoProceso.VENCIDO);
@@ -55,7 +60,7 @@ class ProcesarAccionesCatedraServiceTests {
     void elRechazoDelTelefonoPermiteCorregirlo() {
         procesos.guardar(esperandoTelefono().telefonoPedido("ev-1", VENCE, AHORA).telefonoEnviado(AHORA));
 
-        servicio.telefonoRechazado(new EventoCatedra("ev-2", "rp-9", VENCE.plusSeconds(300)));
+        servicio.telefonoRechazado(rechazo("ev-2", VENCE.plusSeconds(300)));
 
         assertThat(procesos.ultimo().estado()).isEqualTo(EstadoProceso.TELEFONO_RECHAZADO);
         assertThat(procesos.ultimo().venceEn()).isEqualTo(VENCE.plusSeconds(300));
@@ -65,9 +70,18 @@ class ProcesarAccionesCatedraServiceTests {
     void unRechazoSinTelefonoEnviadoSeIgnora() {
         procesos.guardar(esperandoTelefono());
 
-        servicio.telefonoRechazado(new EventoCatedra("ev-2", "rp-9", VENCE));
+        servicio.telefonoRechazado(rechazo("ev-2", VENCE));
 
         assertThat(procesos.historial()).hasSize(1);
+    }
+
+    private static EventoCatedra pedido(String eventId, String reservationProcessId) {
+        return new EventoCatedra(eventId, "AdditionalInformationRequested", reservationProcessId, VENCE, null, null);
+    }
+
+    private static EventoCatedra rechazo(String eventId, Instant venceEn) {
+        return new EventoCatedra(eventId, "AdditionalInformationRejected", "rp-9", venceEn, null,
+                "INVALID_PHONE_NUMBER");
     }
 
     private static ProcesoReserva esperandoTelefono() {

@@ -19,6 +19,8 @@ public class ProcesoReservaMapper {
         entidad.setHoldId(proceso.holdId());
         entidad.setReservationProcessId(proceso.reservationProcessId());
         entidad.setRequestEventId(proceso.requestEventId());
+        entidad.setReservationId(proceso.reservationId());
+        entidad.setMotivo(proceso.motivo());
         entidad.setVenceEn(proceso.venceEn());
         entidad.setCreadoEn(proceso.creadoEn());
         entidad.setActualizadoEn(proceso.actualizadoEn());
@@ -29,6 +31,7 @@ public class ProcesoReservaMapper {
         return new ProcesoReserva(entidad.getId(), entidad.getUsuarioId(), entidad.getProfesionalId(),
                 entidad.getFecha(), entidad.getHoraInicio(), entidad.getVersionCatalogo(), entidad.getEstado(),
                 entidad.getHoldId(), entidad.getReservationProcessId(), entidad.getRequestEventId(),
-                entidad.getVenceEn(), entidad.getCreadoEn(), entidad.getActualizadoEn());
+                entidad.getReservationId(), entidad.getMotivo(), entidad.getVenceEn(), entidad.getCreadoEn(),
+                entidad.getActualizadoEn());
     }
 }

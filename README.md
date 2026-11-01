@@ -267,8 +267,25 @@ cátedra ──AdditionalInformationRejected──▶ turnos       (si el teléf
 
 - **El teléfono no se guarda en turnos:** es un dato personal que solo necesita la cátedra. Tampoco aparece en el log.
 - Un proceso de otro usuario responde `404`, no `403`, para no revelar que existe.
-- Un evento que no corresponde (proceso desconocido, ya terminado o en otro paso) se deja en el log y no se aplica: un evento tardío no reabre un proceso cerrado. Los eventos con resultado (`AppointmentConfirmed`, etc.) todavía no se procesan.
+- Un evento que no corresponde (proceso desconocido, ya terminado o en otro paso) se deja en el log y no se aplica: un evento tardío no reabre un proceso cerrado.
 - El listener solo se crea si `CATEDRA_KAFKA_BOOTSTRAP_SERVERS`, `CATEDRA_KAFKA_CONSUMER_GROUP` y `CATEDRA_KAFKA_TOPIC_ACCIONES` están configuradas. Si falla al procesar un evento, se reintenta 3 veces con 5 segundos de espera; el offset se confirma recién cuando el evento se procesó.
+
+### Resultado de la reserva
+
+La cátedra informa el resultado final de cada proceso por el topic de acciones (CU-06):
+
+| Evento | Estado del proceso | Qué se guarda |
+|---|---|---|
+| `AppointmentConfirmed` | `CONFIRMADO` | el `reservationId` de la cátedra |
+| `AppointmentProcessExpired` | `VENCIDO` | — |
+| `AppointmentProcessInvalid` | `INVALIDO` | el motivo (`reason`) |
+| `AppointmentCancelled` | `CANCELADO` | el motivo, si viene |
+
+- **Sin duplicados:** cada evento del topic de acciones (también el pedido y el rechazo del teléfono) registra su `eventId` en la tabla `evento_procesado`, en la misma transacción que el cambio del proceso. Si el `eventId` ya estaba, el evento se descarta sin efectos. Si algo falla, no queda ni el `eventId` ni el cambio, y Kafka lo reintenta. El offset se confirma recién después de guardar.
+- **Un estado final no retrocede:** un evento tardío sobre un proceso `VENCIDO`, `INVALIDO`, `CANCELADO` o `RECHAZADO` queda en el log y no lo reabre. Hay dos excepciones:
+  - `CONFIRMADO` → `CANCELADO`: cancelar una reserva confirmada es avanzar.
+  - `VENCIDO` → `CONFIRMADO`, solo si la cátedra confirma un proceso que turnos había dado por vencido por su cuenta (comparando con `venceEn`). La cátedra tiene la última palabra: si confirmó, el turno existe.
+- **Eventos fuera de orden:** cada evento se aplica solo si tiene sentido en el estado actual. Un vencimiento que llega después de la confirmación no la deshace; una cancelación que llega antes que la confirmación gana.
 
 ### Estados de un proceso
 
@@ -279,7 +296,7 @@ cátedra ──AdditionalInformationRejected──▶ turnos       (si el teléf
 | `TELEFONO_ENVIADO` | se publicó el teléfono y se espera el resultado | no |
 | `TELEFONO_RECHAZADO` | la cátedra rechazó el teléfono; se puede corregir hasta que venza | no |
 | `INCIERTO` | la cátedra no contestó y no se sabe el resultado | no |
-| `CONFIRMADO` | la cátedra confirmó la reserva | sí |
+| `CONFIRMADO` | la cátedra confirmó la reserva | sí (solo puede pasar a `CANCELADO`) |
 | `VENCIDO` | venció el hold | sí |
 | `INVALIDO` | la cátedra invalidó el proceso | sí |
 | `CANCELADO` | se canceló la reserva | sí |

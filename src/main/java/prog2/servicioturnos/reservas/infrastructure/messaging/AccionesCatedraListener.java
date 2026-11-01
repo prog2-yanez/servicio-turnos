@@ -20,6 +20,10 @@ public class AccionesCatedraListener {
 
     static final String TELEFONO_PEDIDO = "AdditionalInformationRequested";
     static final String TELEFONO_RECHAZADO = "AdditionalInformationRejected";
+    static final String CONFIRMADO = "AppointmentConfirmed";
+    static final String VENCIDO = "AppointmentProcessExpired";
+    static final String INVALIDO = "AppointmentProcessInvalid";
+    static final String CANCELADO = "AppointmentCancelled";
 
     private static final Logger log = LoggerFactory.getLogger(AccionesCatedraListener.class);
 
@@ -46,11 +50,16 @@ public class AccionesCatedraListener {
             log.warn("Se descarta un evento de acciones sin eventId o sin reservationProcessId");
             return;
         }
-        EventoCatedra evento = new EventoCatedra(accion.eventId(), accion.reservationProcessId(), accion.expiresAt());
+        EventoCatedra evento = new EventoCatedra(accion.eventId(), accion.eventType(),
+                accion.reservationProcessId(), accion.expiresAt(), accion.reservationId(), accion.reason());
         switch (String.valueOf(accion.eventType())) {
             case TELEFONO_PEDIDO -> procesarAcciones.telefonoPedido(evento);
             case TELEFONO_RECHAZADO -> procesarAcciones.telefonoRechazado(evento);
-            default -> log.info("Evento {} de tipo {}: todavía no se procesa", accion.eventId(), accion.eventType());
+            case CONFIRMADO -> procesarAcciones.confirmado(evento);
+            case VENCIDO -> procesarAcciones.vencido(evento);
+            case INVALIDO -> procesarAcciones.invalido(evento);
+            case CANCELADO -> procesarAcciones.cancelado(evento);
+            default -> log.info("Se ignora el evento {} de tipo desconocido {}", accion.eventId(), accion.eventType());
         }
     }
 }
