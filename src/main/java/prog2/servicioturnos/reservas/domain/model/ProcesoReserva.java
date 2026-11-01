@@ -3,6 +3,7 @@ package prog2.servicioturnos.reservas.domain.model;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Set;
 
 // Un intento de reservar un turno, a nombre del usuario que lo inició. Cada cambio devuelve un proceso nuevo y
 // controla que la transición sea válida: un proceso que ya terminó no se reabre.
@@ -16,14 +17,20 @@ public record ProcesoReserva(
         EstadoProceso estado,
         String holdId,
         String reservationProcessId,
+        String requestEventId,
         Instant venceEn,
         Instant creadoEn,
         Instant actualizadoEn) {
 
+    // Puede llegar el pedido de teléfono aunque la confirmación todavía no se haya guardado (INICIADO con hold) o
+    // haya quedado INCIERTA: el pedido demuestra que la cátedra sí la recibió.
+    private static final Set<EstadoProceso> PUEDEN_RECIBIR_PEDIDO_DE_TELEFONO =
+            Set.of(EstadoProceso.INICIADO, EstadoProceso.INCIERTO, EstadoProceso.ESPERANDO_TELEFONO);
+
     public static ProcesoReserva iniciar(long usuarioId, long profesionalId, LocalDate fecha, LocalTime horaInicio,
             long versionCatalogo, Instant ahora) {
         return new ProcesoReserva(null, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo,
-                EstadoProceso.INICIADO, null, null, null, ahora, ahora);
+                EstadoProceso.INICIADO, null, null, null, null, ahora, ahora);
     }
 
     // La cátedra creó el hold: se guardan sus identificadores y cuándo vence. Sigue INICIADO hasta confirmarlo.
@@ -31,17 +38,35 @@ public record ProcesoReserva(
             Instant ahora) {
         exigirEstado(EstadoProceso.INICIADO);
         return new ProcesoReserva(id, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo, estado,
-                nuevoHoldId, nuevoReservationProcessId, nuevoVenceEn, creadoEn, ahora);
+                nuevoHoldId, nuevoReservationProcessId, requestEventId, nuevoVenceEn, creadoEn, ahora);
     }
 
     // La cátedra aceptó la confirmación inicial. Su expiresAt manda: guardarlo no extiende el hold.
     public ProcesoReserva esperandoTelefono(Instant nuevoVenceEn, Instant ahora) {
         exigirEstado(EstadoProceso.INICIADO);
-        if (holdId == null) {
-            throw new IllegalStateException("No se puede confirmar un proceso sin hold");
-        }
+        exigirHold();
         return new ProcesoReserva(id, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo,
-                EstadoProceso.ESPERANDO_TELEFONO, holdId, reservationProcessId, nuevoVenceEn, creadoEn, ahora);
+                EstadoProceso.ESPERANDO_TELEFONO, holdId, reservationProcessId, requestEventId, nuevoVenceEn,
+                creadoEn, ahora);
+    }
+
+    // Llegó AdditionalInformationRequested: se guarda su eventId para devolverlo con el teléfono.
+    public ProcesoReserva telefonoPedido(String nuevoRequestEventId, Instant nuevoVenceEn, Instant ahora) {
+        if (!PUEDEN_RECIBIR_PEDIDO_DE_TELEFONO.contains(estado)) {
+            throw new IllegalStateException("El proceso está " + estado + " y no espera un pedido de teléfono");
+        }
+        exigirHold();
+        return new ProcesoReserva(id, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo,
+                EstadoProceso.ESPERANDO_TELEFONO, holdId, reservationProcessId, nuevoRequestEventId,
+                vencimientoInformado(nuevoVenceEn), creadoEn, ahora);
+    }
+
+    // Llegó AdditionalInformationRejected: el usuario puede corregir el teléfono hasta el nuevo vencimiento.
+    public ProcesoReserva telefonoRechazado(Instant nuevoVenceEn, Instant ahora) {
+        exigirEstado(EstadoProceso.TELEFONO_ENVIADO);
+        return new ProcesoReserva(id, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo,
+                EstadoProceso.TELEFONO_RECHAZADO, holdId, reservationProcessId, requestEventId,
+                vencimientoInformado(nuevoVenceEn), creadoEn, ahora);
     }
 
     public ProcesoReserva rechazado(Instant ahora) {
@@ -65,12 +90,23 @@ public record ProcesoReserva(
 
     private ProcesoReserva conEstado(EstadoProceso nuevoEstado, Instant ahora) {
         return new ProcesoReserva(id, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo, nuevoEstado,
-                holdId, reservationProcessId, venceEn, creadoEn, ahora);
+                holdId, reservationProcessId, requestEventId, venceEn, creadoEn, ahora);
+    }
+
+    // Si un evento no trae vencimiento, se conserva el que ya se conocía.
+    private Instant vencimientoInformado(Instant nuevoVenceEn) {
+        return nuevoVenceEn != null ? nuevoVenceEn : venceEn;
     }
 
     private void exigirEstado(EstadoProceso esperado) {
         if (estado != esperado) {
             throw new IllegalStateException("El proceso está " + estado + " y se esperaba " + esperado);
+        }
+    }
+
+    private void exigirHold() {
+        if (holdId == null) {
+            throw new IllegalStateException("El proceso todavía no tiene hold");
         }
     }
 

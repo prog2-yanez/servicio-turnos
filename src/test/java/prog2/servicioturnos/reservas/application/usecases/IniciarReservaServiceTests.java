@@ -18,6 +18,7 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -182,11 +183,18 @@ class IniciarReservaServiceTests {
         }
 
         @Override
+        public Optional<ProcesoReserva> buscarPorReservationProcessId(String reservationProcessId) {
+            return historial.reversed().stream()
+                    .filter(proceso -> reservationProcessId.equals(proceso.reservationProcessId()))
+                    .findFirst();
+        }
+
+        @Override
         public ProcesoReserva guardar(ProcesoReserva proceso) {
             ProcesoReserva guardado = proceso.id() != null ? proceso : new ProcesoReserva(ids.incrementAndGet(),
                     proceso.usuarioId(), proceso.profesionalId(), proceso.fecha(), proceso.horaInicio(),
                     proceso.versionCatalogo(), proceso.estado(), proceso.holdId(), proceso.reservationProcessId(),
-                    proceso.venceEn(), proceso.creadoEn(), proceso.actualizadoEn());
+                    proceso.requestEventId(), proceso.venceEn(), proceso.creadoEn(), proceso.actualizadoEn());
             historial.add(guardado);
             return guardado;
         }
