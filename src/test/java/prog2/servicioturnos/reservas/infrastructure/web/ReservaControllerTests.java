@@ -24,6 +24,7 @@ import prog2.servicioturnos.config.JwtConfig;
 import prog2.servicioturnos.config.SecurityConfig;
 import prog2.servicioturnos.reservas.domain.exception.DatosDeCuentaIncompletosException;
 import prog2.servicioturnos.reservas.domain.exception.ProcesoNoEncontradoException;
+import prog2.servicioturnos.reservas.domain.exception.SinProcesoEnCursoException;
 import prog2.servicioturnos.reservas.domain.exception.ProcesoAbiertoException;
 import prog2.servicioturnos.reservas.domain.exception.TelefonoInvalidoException;
 import prog2.servicioturnos.reservas.domain.exception.TelefonoNoPedidoException;
@@ -158,6 +159,71 @@ class ReservaControllerTests {
 
         assertThat(resultado).hasStatus(HttpStatus.UNAUTHORIZED);
         verifyNoInteractions(enviarTelefono);
+    }
+
+    @Test
+    void consultaUnProcesoPropioConQuePuedeHacer() {
+        ProcesoReserva conPedido = proceso(EstadoProceso.ESPERANDO_TELEFONO).telefonoPedido("ev-pedido",
+                Instant.parse("2026-11-02T12:20:00Z"), Instant.parse("2026-11-02T12:01:00Z"));
+        when(consultarProceso.consultar("ana", 100)).thenReturn(conPedido);
+
+        MvcTestResult resultado = mvc.get().uri("/api/v1/reservas/100").with(usuario()).exchange();
+
+        assertThat(resultado).hasStatusOk();
+        assertThat(resultado).bodyJson().isStrictlyEqualTo("""
+                {"id": 100, "estado": "ESPERANDO_TELEFONO", "abierto": true, "profesionalId": 15,
+                 "fecha": "2026-11-03", "horaInicio": "09:00", "venceEn": "2026-11-02T12:20:00Z", "motivo": null,
+                 "puedeEnviarTelefono": true}
+                """);
+    }
+
+    @Test
+    void unProcesoTerminadoNoMuestraVencimientoYSiElMotivo() {
+        ProcesoReserva cancelado = proceso(EstadoProceso.ESPERANDO_TELEFONO)
+                .cancelado("res-500", "Pedido del paciente", Instant.parse("2026-11-02T12:05:00Z"));
+        when(consultarProceso.consultar("ana", 100)).thenReturn(cancelado);
+
+        MvcTestResult resultado = mvc.get().uri("/api/v1/reservas/100").with(usuario()).exchange();
+
+        assertThat(resultado).bodyJson().extractingPath("$.estado").isEqualTo("CANCELADO");
+        assertThat(resultado).bodyJson().extractingPath("$.abierto").isEqualTo(false);
+        assertThat(resultado).bodyJson().extractingPath("$.venceEn").isNull();
+        assertThat(resultado).bodyJson().extractingPath("$.motivo").isEqualTo("Pedido del paciente");
+        assertThat(resultado).bodyText().doesNotContain("res-500");
+    }
+
+    @Test
+    void unProcesoAjenoOInexistenteResponde404() {
+        when(consultarProceso.consultar("ana", 999)).thenThrow(new ProcesoNoEncontradoException(999));
+
+        verificarProblema(mvc.get().uri("/api/v1/reservas/999").with(usuario()).exchange(),
+                HttpStatus.NOT_FOUND, "proceso-no-encontrado");
+    }
+
+    @Test
+    void elProcesoEnCursoSeConsultaSinSaberSuId() {
+        when(consultarProceso.enCurso("ana")).thenReturn(proceso(EstadoProceso.INCIERTO));
+
+        MvcTestResult resultado = mvc.get().uri("/api/v1/reservas/en-curso").with(usuario()).exchange();
+
+        assertThat(resultado).hasStatusOk();
+        assertThat(resultado).bodyJson().extractingPath("$.id").isEqualTo(100);
+        assertThat(resultado).bodyJson().extractingPath("$.estado").isEqualTo("INCIERTO");
+    }
+
+    @Test
+    void sinProcesoEnCursoResponde404() {
+        when(consultarProceso.enCurso("ana")).thenThrow(new SinProcesoEnCursoException());
+
+        verificarProblema(mvc.get().uri("/api/v1/reservas/en-curso").with(usuario()).exchange(),
+                HttpStatus.NOT_FOUND, "sin-proceso-en-curso");
+    }
+
+    @Test
+    void consultarSinTokenResponde401() {
+        assertThat(mvc.get().uri("/api/v1/reservas/100").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
+        assertThat(mvc.get().uri("/api/v1/reservas/en-curso").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
+        verifyNoInteractions(consultarProceso);
     }
 
     private MvcTestResult mandarTelefono(long id, String cuerpo) {
