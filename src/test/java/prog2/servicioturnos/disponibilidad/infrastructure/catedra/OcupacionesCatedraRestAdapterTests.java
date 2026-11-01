@@ -30,6 +30,7 @@ import prog2.servicioturnos.disponibilidad.domain.exception.ProfesionalDeshabili
 import prog2.servicioturnos.disponibilidad.domain.exception.ProfesionalNoEncontradoException;
 import prog2.servicioturnos.disponibilidad.domain.model.EstadoOcupacion;
 import prog2.servicioturnos.disponibilidad.domain.model.Ocupacion;
+import prog2.servicioturnos.shared.catedra.LectorErrorCatedra;
 import tools.jackson.databind.json.JsonMapper;
 
 // La cátedra se simula: cada prueba define qué responde y se verifica cómo lo traduce turnos.
@@ -50,7 +51,8 @@ class OcupacionesCatedraRestAdapterTests {
                 .baseUrl(URL_BASE)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + JWT_TECNICO);
         catedra = MockRestServiceServer.bindTo(builder).build();
-        adaptador = new OcupacionesCatedraRestAdapter(builder.build(), JsonMapper.builder().build());
+        adaptador = new OcupacionesCatedraRestAdapter(
+                builder.build(), new LectorErrorCatedra(JsonMapper.builder().build()));
     }
 
     @Test
