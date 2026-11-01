@@ -28,6 +28,7 @@ import prog2.servicioturnos.reservas.domain.exception.TurnoOcupadoException;
 import prog2.servicioturnos.reservas.domain.model.EstadoProceso;
 import prog2.servicioturnos.reservas.domain.model.PedidoReserva;
 import prog2.servicioturnos.reservas.domain.model.ProcesoReserva;
+import prog2.servicioturnos.reservas.domain.ports.in.EnviarTelefonoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.IniciarReservaUseCase;
 
 @WebMvcTest(controllers = ReservaController.class)
@@ -44,6 +45,9 @@ class ReservaControllerTests {
 
     @MockitoBean
     private IniciarReservaUseCase iniciarReserva;
+
+    @MockitoBean
+    private EnviarTelefonoUseCase enviarTelefono;
 
     @Test
     void esperandoElTelefonoResponde201ConElProcesoSinLosIdsDeLaCatedra() {

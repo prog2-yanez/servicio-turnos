@@ -27,6 +27,10 @@ public record ProcesoReserva(
     private static final Set<EstadoProceso> PUEDEN_RECIBIR_PEDIDO_DE_TELEFONO =
             Set.of(EstadoProceso.INICIADO, EstadoProceso.INCIERTO, EstadoProceso.ESPERANDO_TELEFONO);
 
+    // Después de un rechazo el usuario puede corregir y volver a mandar el teléfono.
+    private static final Set<EstadoProceso> PUEDEN_ENVIAR_TELEFONO =
+            Set.of(EstadoProceso.ESPERANDO_TELEFONO, EstadoProceso.TELEFONO_RECHAZADO);
+
     public static ProcesoReserva iniciar(long usuarioId, long profesionalId, LocalDate fecha, LocalTime horaInicio,
             long versionCatalogo, Instant ahora) {
         return new ProcesoReserva(null, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo,
@@ -67,6 +71,22 @@ public record ProcesoReserva(
         return new ProcesoReserva(id, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo,
                 EstadoProceso.TELEFONO_RECHAZADO, holdId, reservationProcessId, requestEventId,
                 vencimientoInformado(nuevoVenceEn), creadoEn, ahora);
+    }
+
+    // La cátedra pidió el teléfono y todavía no se mandó uno que esté esperando respuesta.
+    public boolean puedeEnviarTelefono() {
+        return PUEDEN_ENVIAR_TELEFONO.contains(estado) && requestEventId != null;
+    }
+
+    public boolean vencioAntesDe(Instant ahora) {
+        return venceEn != null && !venceEn.isAfter(ahora);
+    }
+
+    public ProcesoReserva telefonoEnviado(Instant ahora) {
+        if (!puedeEnviarTelefono()) {
+            throw new IllegalStateException("El proceso está " + estado + " y no espera un teléfono");
+        }
+        return conEstado(EstadoProceso.TELEFONO_ENVIADO, ahora);
     }
 
     public ProcesoReserva rechazado(Instant ahora) {

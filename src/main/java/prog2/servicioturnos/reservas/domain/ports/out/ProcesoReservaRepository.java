@@ -7,6 +7,8 @@ public interface ProcesoReservaRepository {
 
     boolean tieneProcesoAbierto(long usuarioId);
 
+    Optional<ProcesoReserva> buscarPorId(long id);
+
     // Los eventos de la cátedra identifican el proceso por su reservationProcessId.
     Optional<ProcesoReserva> buscarPorReservationProcessId(String reservationProcessId);
 
