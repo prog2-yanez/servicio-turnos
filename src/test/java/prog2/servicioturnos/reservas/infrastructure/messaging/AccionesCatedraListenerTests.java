@@ -42,6 +42,34 @@ class AccionesCatedraListenerTests {
                 Instant.parse("2026-11-02T12:20:00Z"), null, "INVALID_PHONE_NUMBER"));
     }
 
+    @Test
+    void losResultadosLleganAlCasoDeUsoConElIdDeReservaYElMotivo() {
+        listener.recibir("""
+                {"eventId": "ev-3", "eventType": "AppointmentConfirmed", "reservationProcessId": "rp-9",
+                 "requestEventId": "ev-pedido", "reservationId": 500, "professionalId": 15, "date": "2026-11-03",
+                 "startTime": "09:00", "status": "CONFIRMED"}
+                """);
+        listener.recibir("""
+                {"eventId": "ev-4", "eventType": "AppointmentProcessExpired", "reservationProcessId": "rp-9",
+                 "reason": "HOLD_EXPIRED"}
+                """);
+        listener.recibir("""
+                {"eventId": "ev-5", "eventType": "AppointmentProcessInvalid", "reservationProcessId": "rp-9",
+                 "reason": "SLOT_NOT_AVAILABLE"}
+                """);
+        listener.recibir("""
+                {"eventId": "ev-6", "eventType": "AppointmentCancelled", "reservationProcessId": "rp-9",
+                 "reservationId": 500, "reason": null}
+                """);
+
+        verify(procesar).confirmado(new EventoCatedra("ev-3", "AppointmentConfirmed", "rp-9", null, "500", null));
+        verify(procesar).vencido(
+                new EventoCatedra("ev-4", "AppointmentProcessExpired", "rp-9", null, null, "HOLD_EXPIRED"));
+        verify(procesar).invalido(
+                new EventoCatedra("ev-5", "AppointmentProcessInvalid", "rp-9", null, null, "SLOT_NOT_AVAILABLE"));
+        verify(procesar).cancelado(new EventoCatedra("ev-6", "AppointmentCancelled", "rp-9", null, "500", null));
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {
         "{esto no es json",
