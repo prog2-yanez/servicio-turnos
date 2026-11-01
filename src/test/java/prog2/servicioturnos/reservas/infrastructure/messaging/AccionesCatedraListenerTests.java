@@ -27,7 +27,8 @@ class AccionesCatedraListenerTests {
                  "expiresAt": "2026-11-02T12:10:00Z", "occurredAt": "2026-11-02T12:00:01Z", "campoNuevo": 1}
                 """);
 
-        verify(procesar).telefonoPedido(new EventoCatedra("ev-1", "rp-9", Instant.parse("2026-11-02T12:10:00Z")));
+        verify(procesar).telefonoPedido(new EventoCatedra("ev-1", "AdditionalInformationRequested", "rp-9",
+                Instant.parse("2026-11-02T12:10:00Z"), null, null));
     }
 
     @Test
@@ -37,8 +38,8 @@ class AccionesCatedraListenerTests {
                  "reason": "INVALID_PHONE_NUMBER", "expiresAt": "2026-11-02T12:20:00Z"}
                 """);
 
-        verify(procesar).telefonoRechazado(
-                new EventoCatedra("ev-2", "rp-9", Instant.parse("2026-11-02T12:20:00Z")));
+        verify(procesar).telefonoRechazado(new EventoCatedra("ev-2", "AdditionalInformationRejected", "rp-9",
+                Instant.parse("2026-11-02T12:20:00Z"), null, "INVALID_PHONE_NUMBER"));
     }
 
     @ParameterizedTest
@@ -47,10 +48,10 @@ class AccionesCatedraListenerTests {
         "null",
         "{\"eventType\": \"AdditionalInformationRequested\", \"reservationProcessId\": \"rp-9\"}",
         "{\"eventId\": \"ev-1\", \"eventType\": \"AdditionalInformationRequested\"}",
-        "{\"eventId\": \"ev-3\", \"eventType\": \"AppointmentConfirmed\", \"reservationProcessId\": \"rp-9\"}",
+        "{\"eventId\": \"ev-3\", \"eventType\": \"OtroEvento\", \"reservationProcessId\": \"rp-9\"}",
         "{\"eventId\": \"ev-4\", \"reservationProcessId\": \"rp-9\"}"
     })
-    void loQueNoSeProcesaTodaviaSeDescartaSinFallar(String mensaje) {
+    void loQueNoSePuedeProcesarSeDescartaSinFallar(String mensaje) {
         assertThatCode(() -> listener.recibir(mensaje)).doesNotThrowAnyException();
 
         verifyNoInteractions(procesar);

@@ -18,6 +18,8 @@ public record ProcesoReserva(
         String holdId,
         String reservationProcessId,
         String requestEventId,
+        String reservationId,
+        String motivo,
         Instant venceEn,
         Instant creadoEn,
         Instant actualizadoEn) {
@@ -34,7 +36,7 @@ public record ProcesoReserva(
     public static ProcesoReserva iniciar(long usuarioId, long profesionalId, LocalDate fecha, LocalTime horaInicio,
             long versionCatalogo, Instant ahora) {
         return new ProcesoReserva(null, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo,
-                EstadoProceso.INICIADO, null, null, null, null, ahora, ahora);
+                EstadoProceso.INICIADO, null, null, null, null, null, null, ahora, ahora);
     }
 
     // La cátedra creó el hold: se guardan sus identificadores y cuándo vence. Sigue INICIADO hasta confirmarlo.
@@ -42,7 +44,8 @@ public record ProcesoReserva(
             Instant ahora) {
         exigirEstado(EstadoProceso.INICIADO);
         return new ProcesoReserva(id, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo, estado,
-                nuevoHoldId, nuevoReservationProcessId, requestEventId, nuevoVenceEn, creadoEn, ahora);
+                nuevoHoldId, nuevoReservationProcessId, requestEventId, reservationId, motivo, nuevoVenceEn, creadoEn,
+                ahora);
     }
 
     // La cátedra aceptó la confirmación inicial. Su expiresAt manda: guardarlo no extiende el hold.
@@ -50,8 +53,8 @@ public record ProcesoReserva(
         exigirEstado(EstadoProceso.INICIADO);
         exigirHold();
         return new ProcesoReserva(id, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo,
-                EstadoProceso.ESPERANDO_TELEFONO, holdId, reservationProcessId, requestEventId, nuevoVenceEn,
-                creadoEn, ahora);
+                EstadoProceso.ESPERANDO_TELEFONO, holdId, reservationProcessId, requestEventId, reservationId, motivo,
+                nuevoVenceEn, creadoEn, ahora);
     }
 
     // Llegó AdditionalInformationRequested: se guarda su eventId para devolverlo con el teléfono.
@@ -61,16 +64,16 @@ public record ProcesoReserva(
         }
         exigirHold();
         return new ProcesoReserva(id, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo,
-                EstadoProceso.ESPERANDO_TELEFONO, holdId, reservationProcessId, nuevoRequestEventId,
-                vencimientoInformado(nuevoVenceEn), creadoEn, ahora);
+                EstadoProceso.ESPERANDO_TELEFONO, holdId, reservationProcessId, nuevoRequestEventId, reservationId,
+                motivo, vencimientoInformado(nuevoVenceEn), creadoEn, ahora);
     }
 
     // Llegó AdditionalInformationRejected: el usuario puede corregir el teléfono hasta el nuevo vencimiento.
     public ProcesoReserva telefonoRechazado(Instant nuevoVenceEn, Instant ahora) {
         exigirEstado(EstadoProceso.TELEFONO_ENVIADO);
         return new ProcesoReserva(id, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo,
-                EstadoProceso.TELEFONO_RECHAZADO, holdId, reservationProcessId, requestEventId,
-                vencimientoInformado(nuevoVenceEn), creadoEn, ahora);
+                EstadoProceso.TELEFONO_RECHAZADO, holdId, reservationProcessId, requestEventId, reservationId,
+                motivo, vencimientoInformado(nuevoVenceEn), creadoEn, ahora);
     }
 
     // La cátedra pidió el teléfono y todavía no se mandó uno que esté esperando respuesta.
@@ -87,6 +90,32 @@ public record ProcesoReserva(
             throw new IllegalStateException("El proceso está " + estado + " y no espera un teléfono");
         }
         return conEstado(EstadoProceso.TELEFONO_ENVIADO, ahora);
+    }
+
+    // AppointmentConfirmed: la reserva existe en la cátedra. Si turnos lo había marcado VENCIDO por su cuenta
+    // (comparando con venceEn), manda la cátedra: el turno está confirmado.
+    public ProcesoReserva confirmado(String nuevoReservationId, Instant ahora) {
+        if (estado.esFinal() && estado != EstadoProceso.VENCIDO) {
+            throw new IllegalStateException("El proceso ya terminó como " + estado + " y no se reabre");
+        }
+        return new ProcesoReserva(id, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo,
+                EstadoProceso.CONFIRMADO, holdId, reservationProcessId, requestEventId, nuevoReservationId, motivo,
+                venceEn, creadoEn, ahora);
+    }
+
+    // AppointmentProcessInvalid: la cátedra invalidó el proceso.
+    public ProcesoReserva invalido(String nuevoMotivo, Instant ahora) {
+        exigirAbierto();
+        return conResultado(EstadoProceso.INVALIDO, reservationId, nuevoMotivo, ahora);
+    }
+
+    // AppointmentCancelled: se puede cancelar un proceso abierto o una reserva ya confirmada (cancelar es avanzar).
+    public ProcesoReserva cancelado(String reservationIdInformado, String nuevoMotivo, Instant ahora) {
+        if (estado.esFinal() && estado != EstadoProceso.CONFIRMADO) {
+            throw new IllegalStateException("El proceso ya terminó como " + estado + " y no se reabre");
+        }
+        String reserva = reservationId != null ? reservationId : reservationIdInformado;
+        return conResultado(EstadoProceso.CANCELADO, reserva, nuevoMotivo, ahora);
     }
 
     public ProcesoReserva rechazado(Instant ahora) {
@@ -110,7 +139,14 @@ public record ProcesoReserva(
 
     private ProcesoReserva conEstado(EstadoProceso nuevoEstado, Instant ahora) {
         return new ProcesoReserva(id, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo, nuevoEstado,
-                holdId, reservationProcessId, requestEventId, venceEn, creadoEn, ahora);
+                holdId, reservationProcessId, requestEventId, reservationId, motivo, venceEn, creadoEn, ahora);
+    }
+
+    private ProcesoReserva conResultado(EstadoProceso nuevoEstado, String nuevoReservationId, String nuevoMotivo,
+            Instant ahora) {
+        return new ProcesoReserva(id, usuarioId, profesionalId, fecha, horaInicio, versionCatalogo, nuevoEstado,
+                holdId, reservationProcessId, requestEventId, nuevoReservationId, nuevoMotivo, venceEn, creadoEn,
+                ahora);
     }
 
     // Si un evento no trae vencimiento, se conserva el que ya se conocía.
