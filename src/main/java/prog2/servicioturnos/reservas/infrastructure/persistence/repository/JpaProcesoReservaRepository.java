@@ -1,6 +1,7 @@
 package prog2.servicioturnos.reservas.infrastructure.persistence.repository;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import prog2.servicioturnos.reservas.domain.model.EstadoProceso;
@@ -11,6 +12,8 @@ public interface JpaProcesoReservaRepository extends JpaRepository<ProcesoReserv
     boolean existsByUsuarioIdAndEstadoIn(long usuarioId, Collection<EstadoProceso> estados);
 
     Optional<ProcesoReservaEntity> findByReservationProcessId(String reservationProcessId);
+
+    List<ProcesoReservaEntity> findByUsuarioId(long usuarioId);
 
     Optional<ProcesoReservaEntity> findFirstByUsuarioIdAndEstadoIn(long usuarioId, Collection<EstadoProceso> estados);
 }
