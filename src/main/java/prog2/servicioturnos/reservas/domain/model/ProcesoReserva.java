@@ -76,6 +76,14 @@ public record ProcesoReserva(
                 motivo, vencimientoInformado(nuevoVenceEn), creadoEn, ahora);
     }
 
+    public boolean esDe(long otroUsuarioId) {
+        return usuarioId == otroUsuarioId;
+    }
+
+    public boolean estaAbierto() {
+        return !estado.esFinal();
+    }
+
     // La cátedra pidió el teléfono y todavía no se mandó uno que esté esperando respuesta.
     public boolean puedeEnviarTelefono() {
         return PUEDEN_ENVIAR_TELEFONO.contains(estado) && requestEventId != null;

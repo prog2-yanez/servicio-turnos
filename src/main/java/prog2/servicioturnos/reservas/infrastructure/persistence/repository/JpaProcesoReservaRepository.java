@@ -11,4 +11,6 @@ public interface JpaProcesoReservaRepository extends JpaRepository<ProcesoReserv
     boolean existsByUsuarioIdAndEstadoIn(long usuarioId, Collection<EstadoProceso> estados);
 
     Optional<ProcesoReservaEntity> findByReservationProcessId(String reservationProcessId);
+
+    Optional<ProcesoReservaEntity> findFirstByUsuarioIdAndEstadoIn(long usuarioId, Collection<EstadoProceso> estados);
 }

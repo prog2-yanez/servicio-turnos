@@ -9,6 +9,9 @@ public interface ProcesoReservaRepository {
 
     Optional<ProcesoReserva> buscarPorId(long id);
 
+    // Como mucho hay uno: el índice ux_proceso_abierto_por_usuario no deja guardar dos.
+    Optional<ProcesoReserva> buscarAbiertoDe(long usuarioId);
+
     // Los eventos de la cátedra identifican el proceso por su reservationProcessId.
     Optional<ProcesoReserva> buscarPorReservationProcessId(String reservationProcessId);
 

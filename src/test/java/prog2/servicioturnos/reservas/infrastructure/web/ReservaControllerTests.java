@@ -31,6 +31,7 @@ import prog2.servicioturnos.reservas.domain.exception.TurnoOcupadoException;
 import prog2.servicioturnos.reservas.domain.model.EstadoProceso;
 import prog2.servicioturnos.reservas.domain.model.PedidoReserva;
 import prog2.servicioturnos.reservas.domain.model.ProcesoReserva;
+import prog2.servicioturnos.reservas.domain.ports.in.ConsultarProcesoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.EnviarTelefonoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.IniciarReservaUseCase;
 
@@ -52,6 +53,9 @@ class ReservaControllerTests {
     @MockitoBean
     private EnviarTelefonoUseCase enviarTelefono;
 
+    @MockitoBean
+    private ConsultarProcesoUseCase consultarProceso;
+
     @Test
     void esperandoElTelefonoResponde201ConElProcesoSinLosIdsDeLaCatedra() {
         when(iniciarReserva.iniciar("ana", PEDIDO)).thenReturn(proceso(EstadoProceso.ESPERANDO_TELEFONO));
@@ -60,8 +64,9 @@ class ReservaControllerTests {
 
         assertThat(resultado).hasStatus(HttpStatus.CREATED);
         assertThat(resultado).bodyJson().isEqualTo("""
-                {"id": 100, "estado": "ESPERANDO_TELEFONO", "profesionalId": 15, "fecha": "2026-11-03",
-                 "horaInicio": "09:00", "venceEn": "2026-11-02T12:15:00Z"}
+                {"id": 100, "estado": "ESPERANDO_TELEFONO", "abierto": true, "profesionalId": 15,
+                 "fecha": "2026-11-03", "horaInicio": "09:00", "venceEn": "2026-11-02T12:15:00Z", "motivo": null,
+                 "puedeEnviarTelefono": false}
                 """);
         assertThat(resultado).bodyText().doesNotContain("h-77", "rp-9");
     }

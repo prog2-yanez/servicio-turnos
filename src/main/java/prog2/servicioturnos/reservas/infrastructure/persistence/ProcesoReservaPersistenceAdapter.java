@@ -39,6 +39,11 @@ public class ProcesoReservaPersistenceAdapter implements ProcesoReservaRepositor
     }
 
     @Override
+    public Optional<ProcesoReserva> buscarAbiertoDe(long usuarioId) {
+        return procesos.findFirstByUsuarioIdAndEstadoIn(usuarioId, ABIERTOS).map(mapper::aDominio);
+    }
+
+    @Override
     public Optional<ProcesoReserva> buscarPorReservationProcessId(String reservationProcessId) {
         return procesos.findByReservationProcessId(reservationProcessId).map(mapper::aDominio);
     }
