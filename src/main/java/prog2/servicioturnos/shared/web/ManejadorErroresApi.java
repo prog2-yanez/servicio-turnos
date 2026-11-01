@@ -26,6 +26,7 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import prog2.servicioturnos.shared.exception.ConflictoException;
 import prog2.servicioturnos.shared.exception.NoAutenticadoException;
+import prog2.servicioturnos.shared.exception.PedidoInvalidoException;
 import prog2.servicioturnos.shared.exception.RecursoNoEncontradoException;
 import prog2.servicioturnos.shared.exception.ServicioNoDisponibleException;
 
@@ -76,6 +77,11 @@ public class ManejadorErroresApi extends ResponseEntityExceptionHandler {
     public ProblemDetail sinPermiso(AccessDeniedException e, HttpServletRequest pedido) {
         return problema(HttpStatus.FORBIDDEN, "sin-permiso", "Sin permiso",
                 "El usuario no tiene permiso para usar este recurso", pedido);
+    }
+
+    @ExceptionHandler(PedidoInvalidoException.class)
+    public ProblemDetail pedidoInvalido(PedidoInvalidoException e, HttpServletRequest pedido) {
+        return problema(HttpStatus.BAD_REQUEST, e.codigo(), "Pedido inválido", e.getMessage(), pedido);
     }
 
     @ExceptionHandler(ConflictoException.class)
