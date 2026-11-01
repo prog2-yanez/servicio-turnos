@@ -23,10 +23,8 @@ import prog2.servicioturnos.disponibilidad.domain.exception.ProfesionalNoEncontr
 import prog2.servicioturnos.disponibilidad.domain.model.EstadoOcupacion;
 import prog2.servicioturnos.disponibilidad.domain.model.Ocupacion;
 import prog2.servicioturnos.disponibilidad.domain.ports.out.OcupacionesCatedra;
-import prog2.servicioturnos.disponibilidad.infrastructure.catedra.dto.ErrorCatedraResponse;
 import prog2.servicioturnos.disponibilidad.infrastructure.catedra.dto.OcupacionesResponse;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.json.JsonMapper;
+import prog2.servicioturnos.shared.catedra.LectorErrorCatedra;
 
 @Component
 public class OcupacionesCatedraRestAdapter implements OcupacionesCatedra {
@@ -36,12 +34,12 @@ public class OcupacionesCatedraRestAdapter implements OcupacionesCatedra {
     private static final Logger log = LoggerFactory.getLogger(OcupacionesCatedraRestAdapter.class);
 
     private final RestClient catedraRestClient;
-    private final JsonMapper json;
+    private final LectorErrorCatedra lectorError;
 
     public OcupacionesCatedraRestAdapter(
-            @Qualifier("catedraRestClient") RestClient catedraRestClient, JsonMapper json) {
+            @Qualifier("catedraRestClient") RestClient catedraRestClient, LectorErrorCatedra lectorError) {
         this.catedraRestClient = catedraRestClient;
-        this.json = json;
+        this.lectorError = lectorError;
     }
 
     @Override
@@ -73,30 +71,20 @@ public class OcupacionesCatedraRestAdapter implements OcupacionesCatedra {
 
     private RuntimeException traducirError(ClientHttpResponse respuesta, long profesionalId) throws IOException {
         int estado = respuesta.getStatusCode().value();
-        String codigo = codigoDelError(respuesta).orElse("sin code");
+        String codigo = lectorError.codigo(respuesta).orElse("sin code");
         if (estado == 404 && "PROFESSIONAL_NOT_FOUND".equals(codigo)) {
             return new ProfesionalNoEncontradoException(profesionalId);
         }
         if (estado == 400 && "PROFESSIONAL_DISABLED".equals(codigo)) {
             return new ProfesionalDeshabilitadoException(profesionalId);
         }
-        if (estado == 401 || estado == 403 || "STUDENT_INTEGRATION_NOT_FOUND".equals(codigo)) {
+        if (LectorErrorCatedra.esProblemaDeCuentaTecnica(estado, codigo)) {
             // Es un problema de la cuenta técnica, no del usuario: el JWT técnico venció o no corresponde.
             log.error("La cátedra rechazó la cuenta técnica (HTTP {}, {}): revisar CATEDRA_JWT", estado, codigo);
         } else {
             log.warn("La cátedra respondió HTTP {} ({}) al pedir ocupaciones", estado, codigo);
         }
         return new CatedraNoDisponibleException();
-    }
-
-    private Optional<String> codigoDelError(ClientHttpResponse respuesta) {
-        try {
-            ErrorCatedraResponse error = json.readValue(respuesta.getBody(), ErrorCatedraResponse.class);
-            return Optional.ofNullable(error).map(ErrorCatedraResponse::code);
-        } catch (IOException | JacksonException e) {
-            // Los 401 y 403 de Spring Security pueden venir sin cuerpo ni code.
-            return Optional.empty();
-        }
     }
 
     // Si un turno aparece más de una vez, prevalece CONFIRMED sobre HELD (contrato, sección 8).
