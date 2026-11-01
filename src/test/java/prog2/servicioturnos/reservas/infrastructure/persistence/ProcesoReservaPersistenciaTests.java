@@ -96,6 +96,16 @@ class ProcesoReservaPersistenciaTests {
         assertThat(procesos.buscarPorId(-1)).isEmpty();
     }
 
+    @Test
+    void listaTodosLosProcesosDelUsuarioYNingunoAjeno() {
+        procesos.guardar(procesos.guardar(nuevo("09:00")).rechazado(AHORA));
+        procesos.guardar(nuevo("09:30"));
+
+        assertThat(procesos.listarDe(usuarioId)).extracting(ProcesoReserva::horaInicio)
+                .containsExactlyInAnyOrder(LocalTime.of(9, 0), LocalTime.of(9, 30));
+        assertThat(procesos.listarDe(usuarioId + 1000)).isEmpty();
+    }
+
     private ProcesoReserva nuevo(String hora) {
         return ProcesoReserva.iniciar(usuarioId, 15, LocalDate.of(2026, 11, 3), LocalTime.parse(hora), 7, AHORA);
     }

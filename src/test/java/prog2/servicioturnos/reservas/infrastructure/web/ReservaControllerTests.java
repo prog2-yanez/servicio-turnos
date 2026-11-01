@@ -9,6 +9,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -32,6 +33,8 @@ import prog2.servicioturnos.reservas.domain.exception.TurnoOcupadoException;
 import prog2.servicioturnos.reservas.domain.model.EstadoProceso;
 import prog2.servicioturnos.reservas.domain.model.PedidoReserva;
 import prog2.servicioturnos.reservas.domain.model.ProcesoReserva;
+import prog2.servicioturnos.reservas.domain.model.ReservaPropia;
+import prog2.servicioturnos.reservas.domain.model.ReservasPropias;
 import prog2.servicioturnos.reservas.domain.ports.in.ConsultarProcesoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.EnviarTelefonoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.IniciarReservaUseCase;
@@ -228,6 +231,40 @@ class ReservaControllerTests {
         assertThat(mvc.get().uri("/api/v1/reservas/100").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
         assertThat(mvc.get().uri("/api/v1/reservas/en-curso").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
         verifyNoInteractions(consultarProceso);
+    }
+
+    @Test
+    void listaLasReservasPropiasSinLosIdsDeLaCatedra() {
+        when(listarReservas.listar("ana")).thenReturn(new ReservasPropias(List.of(new ReservaPropia(100L,
+                EstadoProceso.CONFIRMADO, LocalDate.of(2026, 11, 3), LocalTime.of(9, 0), LocalTime.of(9, 30), 15,
+                "Ana", "Gomez", Instant.parse("2026-11-02T12:05:00Z"), null, null)), false));
+
+        MvcTestResult resultado = mvc.get().uri("/api/v1/reservas").with(usuario()).exchange();
+
+        assertThat(resultado).hasStatusOk();
+        assertThat(resultado).bodyJson().isStrictlyEqualTo("""
+                {"reservas": [{"procesoId": 100, "estado": "CONFIRMADO", "fecha": "2026-11-03",
+                  "horaInicio": "09:00", "horaFin": "09:30",
+                  "profesional": {"id": 15, "nombre": "Ana", "apellido": "Gomez"},
+                  "confirmadaEn": "2026-11-02T12:05:00Z", "canceladaEn": null, "motivoCancelacion": null}],
+                 "desactualizado": false}
+                """);
+    }
+
+    @Test
+    void conLaCatedraCaidaResponde200AvisandoQuePuedeEstarDesactualizado() {
+        when(listarReservas.listar("ana")).thenReturn(new ReservasPropias(List.of(), true));
+
+        MvcTestResult resultado = mvc.get().uri("/api/v1/reservas").with(usuario()).exchange();
+
+        assertThat(resultado).hasStatusOk();
+        assertThat(resultado).bodyJson().extractingPath("$.desactualizado").isEqualTo(true);
+    }
+
+    @Test
+    void listarSinTokenResponde401() {
+        assertThat(mvc.get().uri("/api/v1/reservas").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
+        verifyNoInteractions(listarReservas);
     }
 
     private MvcTestResult mandarTelefono(long id, String cuerpo) {
