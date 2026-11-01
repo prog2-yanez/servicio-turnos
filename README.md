@@ -187,6 +187,70 @@ Cómo se arman los turnos libres:
 - Un profesional inexistente responde `404` y uno deshabilitado `409`. Si el catálogo o la cátedra no responden, `503`.
 - En el filtro, los profesionales de la categoría se leen de todas las páginas del catálogo. Si alguno se deshabilita o desaparece mientras se arma la lista, no se muestra. Si el catálogo o la cátedra no responden, falla toda la búsqueda: una lista parcial haría creer que los que faltan no tienen turnos.
 
+## Reservas
+
+### Iniciar una reserva
+
+`POST /api/v1/reservas` inicia el proceso de reserva de un turno libre (CU-04). Exige el JWT del usuario: el usuario sale siempre del token, nunca del cuerpo.
+
+```json
+{ "profesionalId": 15, "fecha": "2026-11-03", "horaInicio": "09:00" }
+```
+
+Pasos, en orden:
+
+1. La cuenta tiene que tener nombre y apellido de al menos 2 caracteres, porque la cátedra los exige. Si no, `400 datos-de-cuenta-incompletos`.
+2. Un usuario puede tener **un solo proceso abierto** a la vez. Si ya tiene uno, `409 proceso-abierto`.
+3. Se vuelve a validar con el catálogo y la cátedra que el turno siga libre (la misma regla que la disponibilidad). Si no, `409 turno-no-disponible`.
+4. Se registra el proceso a nombre del usuario en estado `INICIADO`, **antes** de llamar a la cátedra.
+5. Se pide el hold a la cátedra (`POST /api/appointment-holds`) y se guardan `holdId`, `reservationProcessId` y `expiresAt`. Como `externalPatientId` se manda el id del usuario en turnos.
+6. Se confirma inicialmente el hold (`POST /api/appointment-holds/{holdId}/confirm`) con el nombre y apellido de la cuenta. El proceso queda `ESPERANDO_TELEFONO`.
+
+Cada paso se guarda apenas ocurre, sin una transacción que los agrupe: si la cátedra ya creó el hold y después falla la confirmación, el proceso conserva el `holdId`.
+
+| Qué pasa | Estado del proceso | Respuesta |
+|---|---|---|
+| Todo bien | `ESPERANDO_TELEFONO` | `201` con el proceso |
+| La cátedra no contesta (timeout, sin conexión, `5xx` o respuesta incompleta) | `INCIERTO` | `202` con el proceso |
+| `SLOT_ALREADY_HELD` / `SLOT_ALREADY_RESERVED` | `RECHAZADO` | `409 turno-ocupado` |
+| `INVALID_SLOT`, `PROFESSIONAL_NOT_FOUND`, `PROFESSIONAL_DISABLED` | `RECHAZADO` | `409 turno-no-disponible` |
+| `HOLD_EXPIRED` | `VENCIDO` | `409 proceso-vencido` |
+| Problema de la cuenta técnica (`401`, `403`, `STUDENT_INTEGRATION_NOT_FOUND`) | `RECHAZADO` | `503 catedra-no-disponible` |
+| Otro rechazo de la cátedra | `RECHAZADO` | `409 reserva-rechazada` |
+
+```json
+{
+  "id": 100,
+  "estado": "ESPERANDO_TELEFONO",
+  "profesionalId": 15,
+  "fecha": "2026-11-03",
+  "horaInicio": "09:00",
+  "venceEn": "2026-11-02T12:15:00Z"
+}
+```
+
+- **Un timeout no es un rechazo:** la cátedra pudo haber retenido el turno. Por eso no se reintenta a ciegas: el proceso queda `INCIERTO` y lo resuelve la recuperación (CU-10), que primero consulta el estado.
+- **Un solo proceso abierto**, como acordamos con el profesor: además del chequeo en el servicio, un índice único parcial en PostgreSQL (`ux_proceso_abierto_por_usuario`) impide guardar dos procesos abiertos del mismo usuario aunque lleguen dos pedidos a la vez. `INCIERTO` cuenta como abierto.
+- **No se cancela un hold:** si el usuario se arrepiente antes de mandar el teléfono, el hold se deja vencer y el proceso termina como `VENCIDO`. Guardar `venceEn` no extiende el hold.
+- Los identificadores de la cátedra (`holdId`, `reservationProcessId`) no se le muestran a la app.
+
+### Estados de un proceso
+
+| Estado | Cuándo | ¿Es final? |
+|---|---|---|
+| `INICIADO` | se registró el proceso y se está pidiendo el hold | no |
+| `ESPERANDO_TELEFONO` | la cátedra aceptó la confirmación inicial | no |
+| `TELEFONO_ENVIADO` | se publicó el teléfono y se espera el resultado | no |
+| `TELEFONO_RECHAZADO` | la cátedra rechazó el teléfono; se puede corregir hasta que venza | no |
+| `INCIERTO` | la cátedra no contestó y no se sabe el resultado | no |
+| `CONFIRMADO` | la cátedra confirmó la reserva | sí |
+| `VENCIDO` | venció el hold | sí |
+| `INVALIDO` | la cátedra invalidó el proceso | sí |
+| `CANCELADO` | se canceló la reserva | sí |
+| `RECHAZADO` | la cátedra rechazó el hold | sí |
+
+Un estado final no cambia más: un proceso terminado no se reabre.
+
 ## Integración con la cátedra
 
 El servicio reserva turnos contra el servicio central de la cátedra por REST y Kafka. Usa la misma cuenta técnica que el servicio de catálogo: se da de alta una sola vez, a mano, y los dos servicios comparten el JWT técnico (contrato de integración, sección 2).
