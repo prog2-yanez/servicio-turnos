@@ -9,14 +9,19 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import prog2.servicioturnos.disponibilidad.domain.exception.CatedraNoDisponibleException;
+import prog2.servicioturnos.reservas.domain.exception.ReservaNoCancelableException;
+import prog2.servicioturnos.reservas.domain.exception.ResultadoInciertoException;
 import prog2.servicioturnos.reservas.domain.model.EstadoReservaCatedra;
 import prog2.servicioturnos.reservas.domain.model.ReservaCatedra;
 import prog2.servicioturnos.reservas.domain.ports.out.ReservasCatedra;
+import prog2.servicioturnos.reservas.infrastructure.catedra.dto.CancelacionResponse;
+import prog2.servicioturnos.reservas.infrastructure.catedra.dto.CancelarReservaRequest;
 import prog2.servicioturnos.reservas.infrastructure.catedra.dto.ReservaCatedraResponse;
 import prog2.servicioturnos.shared.catedra.LectorErrorCatedra;
 
@@ -24,6 +29,7 @@ import prog2.servicioturnos.shared.catedra.LectorErrorCatedra;
 public class ReservasCatedraRestAdapter implements ReservasCatedra {
 
     static final String RUTA_RESERVAS = "/api/appointments";
+    static final String RUTA_CANCELAR = "/api/appointments/{reservationProcessId}/cancel";
     static final int TAMANIO_PAGINA = 100;
 
     // Corta el recorrido si la cátedra nunca devolviera una página incompleta.
@@ -69,6 +75,30 @@ public class ReservasCatedraRestAdapter implements ReservasCatedra {
         return reservas;
     }
 
+    @Override
+    public String cancelar(String reservationProcessId, String motivo) {
+        CancelacionResponse respuesta;
+        try {
+            respuesta = catedraRestClient.post()
+                    .uri(RUTA_CANCELAR, reservationProcessId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new CancelarReservaRequest(motivo))
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (pedido, resp) -> {
+                        throw traducirErrorAlCancelar(resp);
+                    })
+                    .body(CancelacionResponse.class);
+        } catch (RestClientException | IllegalArgumentException e) {
+            // Un timeout no prueba que no se canceló: la cátedra pudo haberlo hecho.
+            log.warn("La cátedra no respondió la cancelación: {}", e.getClass().getSimpleName());
+            throw new ResultadoInciertoException("sin respuesta al cancelar");
+        }
+        if (respuesta == null || !"CANCELLED".equals(respuesta.status())) {
+            throw new ResultadoInciertoException("la cátedra no informó la reserva cancelada");
+        }
+        return respuesta.reservationId();
+    }
+
     private List<ReservaCatedraResponse> pedirPagina(String externalPatientId, int pagina) {
         List<ReservaCatedraResponse> respuesta;
         try {
@@ -99,6 +129,27 @@ public class ReservasCatedraRestAdapter implements ReservasCatedra {
                     estado, codigo);
         } else {
             log.warn("La cátedra respondió HTTP {} ({}) al listar reservas", estado, codigo);
+        }
+        return new CatedraNoDisponibleException();
+    }
+
+    private RuntimeException traducirErrorAlCancelar(ClientHttpResponse respuesta) throws IOException {
+        int estado = respuesta.getStatusCode().value();
+        String codigo = lectorError.codigo(respuesta).orElse("sin code");
+        if (estado >= 500) {
+            log.warn("La cátedra respondió HTTP {} al cancelar", estado);
+            return new ResultadoInciertoException("HTTP " + estado + " al cancelar");
+        }
+        if ("RESERVATION_NOT_CANCELLABLE".equals(codigo)) {
+            log.info("La cátedra no permite cancelar la reserva (HTTP {})", estado);
+            return new ReservaNoCancelableException();
+        }
+        if (LectorErrorCatedra.esProblemaDeCuentaTecnica(estado, codigo)) {
+            log.error("La cátedra rechazó la cuenta técnica al cancelar (HTTP {}, {}): revisar CATEDRA_JWT",
+                    estado, codigo);
+        } else {
+            // RESERVATION_NOT_FOUND u OWNER_MISMATCH: la cátedra no reconoce un proceso que turnos guardó.
+            log.error("La cátedra rechazó la cancelación (HTTP {}, {})", estado, codigo);
         }
         return new CatedraNoDisponibleException();
     }
