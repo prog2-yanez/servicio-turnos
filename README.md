@@ -58,6 +58,7 @@ cp .env.example .env
 | `CATALOGO_API_URL` | URL del servicio de catálogo (por defecto `http://localhost:8080`) |
 | `JWT_SECRETO` | Clave con la que turnos firma el JWT de los usuarios (HS256). Mínimo 32 caracteres |
 | `JWT_DURACION` | Cuánto dura el JWT de los usuarios (por defecto `1h`) |
+| `CORS_ORIGENES_PERMITIDOS` | Orígenes de navegador que pueden llamar a turnos, separados por coma. Vacía por defecto (ver [CORS](#cors)) |
 
 - El puerto de `SPRING_DATASOURCE_URL` tiene que coincidir con `DB_PORT`.
 - El puerto por defecto es `5434` para no chocar con PostgreSQL instalado en la máquina (`5432`) ni con la base del catálogo (`5433`).
@@ -137,9 +138,33 @@ curl http://localhost:8081/api/v1/cuenta -H "Authorization: Bearer <id_token>"
 
 Con `token-invalido` la app tiene que volver a iniciar sesión.
 
+## CORS
+
+CORS es una regla que aplica el navegador: no deja que una página de un dominio llame a otro salvo que el servidor lo permita. La app Android no es un navegador, así que no lo necesita. Por eso, por defecto, **ningún origen de navegador está permitido**.
+
+- Si algún día hace falta un cliente web, su origen se agrega en `CORS_ORIGENES_PERMITIDOS` (por ejemplo `https://panel.ejemplo.com`; varios, separados por coma).
+- Aun así, solo se permiten los métodos que usa la API (`GET` y `POST`) y los headers `Authorization` y `Content-Type`.
+- Un pedido de un origen no permitido responde `403 origen-no-permitido`. Los pedidos sin `Origin` (la app) no cambian.
+
 ## Errores
 
-Todos los errores responden `application/problem+json` (RFC 7807) con `type`, `title`, `status`, `detail` e `instance`. El `type` es `urn:turnos:error:<codigo>`, por ejemplo `urn:turnos:error:datos-invalidos`. Ningún error muestra trazas ni datos internos.
+Todos los errores responden `application/problem+json` (RFC 7807) con `type`, `title`, `status`, `detail` e `instance`. El `type` es `urn:turnos:error:<codigo>`, por ejemplo `urn:turnos:error:datos-invalidos`. El `title` y el `detail` están en español. Ningún error muestra trazas ni datos internos: un error inesperado responde `500 error-interno` con un texto genérico y la traza queda solo en el log.
+
+Los datos de entrada se validan en los controllers, antes de llegar a los casos de uso:
+
+| Error | Status | `type` | Ejemplo de `detail` |
+|---|---|---|---|
+| Un campo del cuerpo no cumple su regla | 400 | `datos-invalidos` | `Datos inválidos. profesionalId: debe ser mayor a 0` |
+| El cuerpo no es un JSON válido | 400 | `parametro-invalido` | `El cuerpo del pedido no es un JSON válido` |
+| Un parámetro de la URL no cumple su regla | 400 | `parametro-invalido` | `Parámetros inválidos. id: debe ser mayor a 0` |
+| Un parámetro con un tipo que no corresponde | 400 | `parametro-invalido` | `El parámetro 'fecha' tiene que ser una fecha con el formato AAAA-MM-DD` |
+| Falta un parámetro obligatorio | 400 | `parametro-invalido` | `Falta el parámetro obligatorio 'fecha'` |
+| Ruta inexistente | 404 | `ruta-no-encontrada` | `No existe la ruta /api/v1/otra` |
+| Método no permitido | 405 | `metodo-no-permitido` | `El método DELETE no está permitido en esta ruta` |
+
+- Los ids (`{id}`, `categoriaId`, `profesionalId`) tienen que ser mayores a 0.
+- En el login, `username` puede tener hasta 50 caracteres y `password` hasta 100, los mismos límites que el registro.
+- El `detail` nombra el campo o el parámetro que falló, pero no repite el valor recibido.
 
 ## Consulta al catálogo
 
