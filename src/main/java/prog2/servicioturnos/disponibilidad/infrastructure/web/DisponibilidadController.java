@@ -1,5 +1,6 @@
 package prog2.servicioturnos.disponibilidad.infrastructure.web;
 
+import jakarta.validation.constraints.Positive;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -29,7 +30,7 @@ public class DisponibilidadController {
     // Solo los profesionales de la categoría que tienen al menos un turno libre en la fecha.
     @GetMapping
     public List<ProfesionalConTurnosLibresResponse> conTurnosLibres(
-            @RequestParam long categoriaId,
+            @RequestParam @Positive(message = "debe ser mayor a 0") long categoriaId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
         return buscarConTurnosLibres.buscar(categoriaId, fecha).stream()
                 .map(ProfesionalConTurnosLibresResponse::desde)
@@ -38,7 +39,8 @@ public class DisponibilidadController {
 
     @GetMapping("/{id}")
     public TurnosLibresResponse turnosLibres(
-            @PathVariable long id, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
+            @PathVariable @Positive(message = "debe ser mayor a 0") long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
         return TurnosLibresResponse.desde(consultarTurnosLibres.consultar(id, fecha));
     }
 }

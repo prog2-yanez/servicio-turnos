@@ -2,9 +2,11 @@ package prog2.servicioturnos.shared.web;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.TypeMismatchException;
@@ -17,13 +19,17 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import prog2.servicioturnos.shared.exception.ConflictoException;
 import prog2.servicioturnos.shared.exception.NoAutenticadoException;
 import prog2.servicioturnos.shared.exception.PedidoInvalidoException;
@@ -115,26 +121,60 @@ public class ManejadorErroresApi extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, problema, headers, estado, pedido);
     }
 
-    // Parámetros de la URL que no cumplen sus validaciones (por ejemplo @Max).
+    // Parámetros de la URL que no cumplen sus validaciones (por ejemplo @Positive). Si el método también valida un
+    // cuerpo, Spring junta todo en esta excepción: los errores del cuerpo nombran el campo y se informan como
+    // datos-invalidos, igual que cuando el cuerpo se valida solo.
     @Override
     protected ResponseEntity<Object> handleHandlerMethodValidationException(
             HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode estado, WebRequest pedido) {
-        String detalle = ex.getParameterValidationResults().stream()
+        Stream<String> delCuerpo = ex.getBeanResults().stream()
+                .flatMap(resultado -> resultado.getFieldErrors().stream())
+                .map(error -> error.getField() + ": " + error.getDefaultMessage());
+        Stream<String> deLaUrl = ex.getValueResults().stream()
                 .flatMap(resultado -> resultado.getResolvableErrors().stream()
                         .map(error -> resultado.getMethodParameter().getParameterName() + ": "
-                                + error.getDefaultMessage()))
-                .collect(Collectors.joining("; "));
-        ProblemDetail problema = conTipo(estado, "parametro-invalido", "Parámetro inválido",
-                "Parámetros inválidos. " + detalle);
+                                + error.getDefaultMessage()));
+        String detalle = Stream.concat(delCuerpo, deLaUrl).sorted().collect(Collectors.joining("; "));
+        ProblemDetail problema = ex.getBeanResults().isEmpty()
+                ? conTipo(estado, "parametro-invalido", "Parámetro inválido", "Parámetros inválidos. " + detalle)
+                : conTipo(estado, "datos-invalidos", "Datos inválidos", "Datos inválidos. " + detalle);
         return handleExceptionInternal(ex, problema, headers, estado, pedido);
     }
 
-    // Un valor que no se puede convertir al tipo esperado, como un número con letras.
+    // Un valor que no se puede convertir al tipo esperado, como un número con letras. Se nombra el parámetro y lo
+    // que se esperaba, sin repetir el valor recibido.
     @Override
     protected ResponseEntity<Object> handleTypeMismatch(
             TypeMismatchException ex, HttpHeaders headers, HttpStatusCode estado, WebRequest pedido) {
         ProblemDetail problema = conTipo(estado, "parametro-invalido", "Parámetro inválido",
-                ex.getPropertyName() + ": el valor '" + ex.getValue() + "' no es válido");
+                "El parámetro '" + ex.getPropertyName() + "' tiene que ser " + tipoEsperado(ex.getRequiredType()));
+        return handleExceptionInternal(ex, problema, headers, estado, pedido);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMissingServletRequestParameter(
+            MissingServletRequestParameterException ex, HttpHeaders headers, HttpStatusCode estado,
+            WebRequest pedido) {
+        ProblemDetail problema = conTipo(estado, "parametro-invalido", "Parámetro inválido",
+                "Falta el parámetro obligatorio '" + ex.getParameterName() + "'");
+        return handleExceptionInternal(ex, problema, headers, estado, pedido);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleNoResourceFoundException(
+            NoResourceFoundException ex, HttpHeaders headers, HttpStatusCode estado, WebRequest pedido) {
+        ProblemDetail problema = conTipo(estado, "ruta-no-encontrada", "Ruta no encontrada",
+                "No existe la ruta /" + ex.getResourcePath());
+        return handleExceptionInternal(ex, problema, headers, estado, pedido);
+    }
+
+    // Los headers que arma Spring (Allow) se mantienen; solo cambia el texto.
+    @Override
+    protected ResponseEntity<Object> handleHttpRequestMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex, HttpHeaders headers, HttpStatusCode estado,
+            WebRequest pedido) {
+        ProblemDetail problema = conTipo(estado, "metodo-no-permitido", "Método no permitido",
+                "El método " + ex.getMethod() + " no está permitido en esta ruta");
         return handleExceptionInternal(ex, problema, headers, estado, pedido);
     }
 
@@ -158,11 +198,28 @@ public class ManejadorErroresApi extends ResponseEntityExceptionHandler {
                 problema.setType(URI.create(PREFIJO_TIPO + tipo.codigo()));
                 problema.setTitle(tipo.titulo());
             }
+            // Si quedó el detalle que arma Spring (en inglés), se reemplaza por uno genérico en español.
+            if (ex instanceof ErrorResponse deSpring && problema == deSpring.getBody()) {
+                problema.setDetail("El pedido no se pudo procesar (" + estado.value() + ")");
+            }
             if (pedido instanceof ServletWebRequest servlet) {
                 problema.setInstance(URI.create(servlet.getRequest().getRequestURI()));
             }
         }
         return respuesta;
+    }
+
+    private static String tipoEsperado(Class<?> tipo) {
+        if (tipo == Boolean.class || tipo == boolean.class) {
+            return "true o false";
+        }
+        if (tipo == Long.class || tipo == long.class || tipo == Integer.class || tipo == int.class) {
+            return "un número entero";
+        }
+        if (tipo == LocalDate.class) {
+            return "una fecha con el formato AAAA-MM-DD";
+        }
+        return "un valor válido";
     }
 
     private static ProblemDetail conTipo(HttpStatusCode estado, String codigo, String titulo, String detalle) {

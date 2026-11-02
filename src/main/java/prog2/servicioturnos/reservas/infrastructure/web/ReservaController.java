@@ -1,6 +1,7 @@
 package prog2.servicioturnos.reservas.infrastructure.web;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -51,7 +52,8 @@ public class ReservaController {
     }
 
     @GetMapping("/{id}")
-    public ProcesoReservaResponse consultar(@AuthenticationPrincipal Jwt token, @PathVariable long id) {
+    public ProcesoReservaResponse consultar(
+            @AuthenticationPrincipal Jwt token, @PathVariable @Positive(message = "debe ser mayor a 0") long id) {
         return ProcesoReservaResponse.desde(consultarProceso.consultar(token.getSubject(), id));
     }
 
@@ -74,14 +76,16 @@ public class ReservaController {
     // 202: el teléfono salió hacia la cátedra, pero el resultado de la reserva llega después por Kafka.
     @PostMapping("/{id}/telefono")
     public ResponseEntity<ProcesoReservaResponse> enviarTelefono(@AuthenticationPrincipal Jwt token,
-            @PathVariable long id, @Valid @RequestBody EnviarTelefonoRequest pedido) {
+            @PathVariable @Positive(message = "debe ser mayor a 0") long id,
+            @Valid @RequestBody EnviarTelefonoRequest pedido) {
         ProcesoReserva proceso = enviarTelefono.enviar(token.getSubject(), id, pedido.telefono());
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ProcesoReservaResponse.desde(proceso));
     }
 
     // El body es opcional. 200 también si ya estaba cancelada: cancelar dos veces no es un error.
     @PostMapping("/{id}/cancelar")
-    public ProcesoReservaResponse cancelar(@AuthenticationPrincipal Jwt token, @PathVariable long id,
+    public ProcesoReservaResponse cancelar(@AuthenticationPrincipal Jwt token,
+            @PathVariable @Positive(message = "debe ser mayor a 0") long id,
             @Valid @RequestBody(required = false) CancelacionRequest pedido) {
         String motivo = pedido == null ? null : pedido.motivoInformado();
         return ProcesoReservaResponse.desde(cancelarReserva.cancelar(token.getSubject(), id, motivo));
