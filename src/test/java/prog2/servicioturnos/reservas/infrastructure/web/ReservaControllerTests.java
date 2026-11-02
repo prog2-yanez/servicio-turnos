@@ -2,6 +2,8 @@ package prog2.servicioturnos.reservas.infrastructure.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -23,8 +25,10 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import prog2.servicioturnos.config.JwtConfig;
 import prog2.servicioturnos.config.SecurityConfig;
+import prog2.servicioturnos.reservas.domain.exception.CancelacionNoConfirmadaException;
 import prog2.servicioturnos.reservas.domain.exception.DatosDeCuentaIncompletosException;
 import prog2.servicioturnos.reservas.domain.exception.ProcesoNoEncontradoException;
+import prog2.servicioturnos.reservas.domain.exception.ReservaNoCancelableException;
 import prog2.servicioturnos.reservas.domain.exception.SinProcesoEnCursoException;
 import prog2.servicioturnos.reservas.domain.exception.ProcesoAbiertoException;
 import prog2.servicioturnos.reservas.domain.exception.TelefonoInvalidoException;
@@ -35,6 +39,7 @@ import prog2.servicioturnos.reservas.domain.model.PedidoReserva;
 import prog2.servicioturnos.reservas.domain.model.ProcesoReserva;
 import prog2.servicioturnos.reservas.domain.model.ReservaPropia;
 import prog2.servicioturnos.reservas.domain.model.ReservasPropias;
+import prog2.servicioturnos.reservas.domain.ports.in.CancelarReservaUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.ConsultarProcesoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.EnviarTelefonoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.IniciarReservaUseCase;
@@ -63,6 +68,9 @@ class ReservaControllerTests {
 
     @MockitoBean
     private ListarReservasPropiasUseCase listarReservas;
+
+    @MockitoBean
+    private CancelarReservaUseCase cancelarReserva;
 
     @Test
     void esperandoElTelefonoResponde201ConElProcesoSinLosIdsDeLaCatedra() {
@@ -265,6 +273,54 @@ class ReservaControllerTests {
     void listarSinTokenResponde401() {
         assertThat(mvc.get().uri("/api/v1/reservas").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
         verifyNoInteractions(listarReservas);
+    }
+
+    @Test
+    void cancelaUnaReservaPropiaConElMotivoYRespondeElProceso() {
+        when(cancelarReserva.cancelar("ana", 100, "No puedo ir")).thenReturn(proceso(EstadoProceso.CANCELADO));
+
+        MvcTestResult resultado = cancelar(100, "{\"motivo\": \"  No puedo ir \"}");
+
+        assertThat(resultado).hasStatusOk();
+        assertThat(resultado).bodyJson().extractingPath("$.estado").isEqualTo("CANCELADO");
+    }
+
+    @Test
+    void elMotivoEsOpcional() {
+        when(cancelarReserva.cancelar("ana", 100, null)).thenReturn(proceso(EstadoProceso.CANCELADO));
+
+        assertThat(mvc.post().uri("/api/v1/reservas/100/cancelar").with(usuario()).exchange()).hasStatusOk();
+        assertThat(cancelar(100, "{\"motivo\": \"  \"}")).hasStatusOk();
+        verify(cancelarReserva, times(2)).cancelar("ana", 100, null);
+    }
+
+    @Test
+    void unMotivoDeMasDe500CaracteresResponde400SinLlamarAlCasoDeUso() {
+        verificarProblema(cancelar(100, "{\"motivo\": \"" + "a".repeat(501) + "\"}"),
+                HttpStatus.BAD_REQUEST, "datos-invalidos");
+        verifyNoInteractions(cancelarReserva);
+    }
+
+    @Test
+    void losErroresDeLaCancelacionSeTraducenASuStatus() {
+        when(cancelarReserva.cancelar("ana", 999, null)).thenThrow(new ProcesoNoEncontradoException(999));
+        when(cancelarReserva.cancelar("ana", 101, null)).thenThrow(new ReservaNoCancelableException());
+        when(cancelarReserva.cancelar("ana", 102, null)).thenThrow(new CancelacionNoConfirmadaException());
+
+        verificarProblema(cancelar(999, "{}"), HttpStatus.NOT_FOUND, "proceso-no-encontrado");
+        verificarProblema(cancelar(101, "{}"), HttpStatus.CONFLICT, "reserva-no-cancelable");
+        verificarProblema(cancelar(102, "{}"), HttpStatus.SERVICE_UNAVAILABLE, "cancelacion-no-confirmada");
+    }
+
+    @Test
+    void cancelarSinTokenResponde401() {
+        assertThat(mvc.post().uri("/api/v1/reservas/100/cancelar").exchange()).hasStatus(HttpStatus.UNAUTHORIZED);
+        verifyNoInteractions(cancelarReserva);
+    }
+
+    private MvcTestResult cancelar(long id, String cuerpo) {
+        return mvc.post().uri("/api/v1/reservas/" + id + "/cancelar").with(usuario())
+                .contentType(MediaType.APPLICATION_JSON).content(cuerpo).exchange();
     }
 
     private MvcTestResult mandarTelefono(long id, String cuerpo) {
