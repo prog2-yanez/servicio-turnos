@@ -13,10 +13,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import prog2.servicioturnos.reservas.domain.model.EstadoProceso;
 import prog2.servicioturnos.reservas.domain.model.ProcesoReserva;
+import prog2.servicioturnos.reservas.domain.ports.in.CancelarReservaUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.ConsultarProcesoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.EnviarTelefonoUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.IniciarReservaUseCase;
 import prog2.servicioturnos.reservas.domain.ports.in.ListarReservasPropiasUseCase;
+import prog2.servicioturnos.reservas.infrastructure.web.dto.CancelacionRequest;
 import prog2.servicioturnos.reservas.infrastructure.web.dto.EnviarTelefonoRequest;
 import prog2.servicioturnos.reservas.infrastructure.web.dto.IniciarReservaRequest;
 import prog2.servicioturnos.reservas.infrastructure.web.dto.ProcesoReservaResponse;
@@ -30,13 +32,16 @@ public class ReservaController {
     private final EnviarTelefonoUseCase enviarTelefono;
     private final ConsultarProcesoUseCase consultarProceso;
     private final ListarReservasPropiasUseCase listarReservas;
+    private final CancelarReservaUseCase cancelarReserva;
 
     public ReservaController(IniciarReservaUseCase iniciarReserva, EnviarTelefonoUseCase enviarTelefono,
-            ConsultarProcesoUseCase consultarProceso, ListarReservasPropiasUseCase listarReservas) {
+            ConsultarProcesoUseCase consultarProceso, ListarReservasPropiasUseCase listarReservas,
+            CancelarReservaUseCase cancelarReserva) {
         this.iniciarReserva = iniciarReserva;
         this.enviarTelefono = enviarTelefono;
         this.consultarProceso = consultarProceso;
         this.listarReservas = listarReservas;
+        this.cancelarReserva = cancelarReserva;
     }
 
     // Si la cátedra no responde se contesta 200 igual, con lo guardado en turnos y desactualizado = true.
@@ -72,5 +77,13 @@ public class ReservaController {
             @PathVariable long id, @Valid @RequestBody EnviarTelefonoRequest pedido) {
         ProcesoReserva proceso = enviarTelefono.enviar(token.getSubject(), id, pedido.telefono());
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ProcesoReservaResponse.desde(proceso));
+    }
+
+    // El body es opcional. 200 también si ya estaba cancelada: cancelar dos veces no es un error.
+    @PostMapping("/{id}/cancelar")
+    public ProcesoReservaResponse cancelar(@AuthenticationPrincipal Jwt token, @PathVariable long id,
+            @Valid @RequestBody(required = false) CancelacionRequest pedido) {
+        String motivo = pedido == null ? null : pedido.motivoInformado();
+        return ProcesoReservaResponse.desde(cancelarReserva.cancelar(token.getSubject(), id, motivo));
     }
 }
