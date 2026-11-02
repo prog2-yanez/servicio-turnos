@@ -50,6 +50,16 @@ public final class RepositorioProcesosEnMemoria implements ProcesoReservaReposit
     }
 
     @Override
+    public List<ProcesoReserva> listarAbiertos() {
+        return historial.stream()
+                .map(ProcesoReserva::id)
+                .distinct()
+                .map(id -> buscarPorId(id).orElseThrow())
+                .filter(ProcesoReserva::estaAbierto)
+                .toList();
+    }
+
+    @Override
     public Optional<ProcesoReserva> buscarAbiertoDe(long usuarioId) {
         return historial.reversed().stream()
                 .map(proceso -> buscarPorId(proceso.id()).orElseThrow())

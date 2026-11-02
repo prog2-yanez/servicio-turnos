@@ -15,5 +15,7 @@ public interface JpaProcesoReservaRepository extends JpaRepository<ProcesoReserv
 
     List<ProcesoReservaEntity> findByUsuarioId(long usuarioId);
 
+    List<ProcesoReservaEntity> findByEstadoIn(Collection<EstadoProceso> estados);
+
     Optional<ProcesoReservaEntity> findFirstByUsuarioIdAndEstadoIn(long usuarioId, Collection<EstadoProceso> estados);
 }
