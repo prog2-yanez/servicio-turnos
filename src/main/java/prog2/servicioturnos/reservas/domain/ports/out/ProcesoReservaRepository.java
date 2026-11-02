@@ -15,6 +15,9 @@ public interface ProcesoReservaRepository {
     // Como mucho hay uno: el índice ux_proceso_abierto_por_usuario no deja guardar dos.
     Optional<ProcesoReserva> buscarAbiertoDe(long usuarioId);
 
+    // Todos los procesos que todavía no tienen un estado final, de cualquier usuario.
+    List<ProcesoReserva> listarAbiertos();
+
     // Los eventos de la cátedra identifican el proceso por su reservationProcessId.
     Optional<ProcesoReserva> buscarPorReservationProcessId(String reservationProcessId);
 
