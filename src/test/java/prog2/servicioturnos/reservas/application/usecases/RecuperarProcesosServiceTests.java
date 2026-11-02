@@ -32,7 +32,7 @@ class RecuperarProcesosServiceTests {
     private static final Instant CREADO = Instant.parse("2026-11-02T12:00:00Z");
     private static final Instant VENCE = Instant.parse("2026-11-02T12:10:00Z");
     private static final RecuperacionProperties PROPIEDADES =
-            new RecuperacionProperties(Duration.ofMinutes(2), Duration.ofMinutes(15));
+            new RecuperacionProperties(Duration.ofMinutes(1), Duration.ofMinutes(2), Duration.ofMinutes(15));
 
     private final ReservasCatedra catedra = mock(ReservasCatedra.class);
     private final RepositorioProcesosEnMemoria procesos = new RepositorioProcesosEnMemoria();
