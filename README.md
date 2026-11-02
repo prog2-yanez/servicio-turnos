@@ -356,7 +356,7 @@ La app consulta en qué paso está su reserva (CU-07), por ejemplo después de u
 | `ESPERANDO_TELEFONO` | la cátedra aceptó la confirmación inicial | no |
 | `TELEFONO_ENVIADO` | se publicó el teléfono y se espera el resultado | no |
 | `TELEFONO_RECHAZADO` | la cátedra rechazó el teléfono; se puede corregir hasta que venza | no |
-| `INCIERTO` | la cátedra no contestó y no se sabe el resultado | no |
+| `INCIERTO` | la cátedra no contestó y no se sabe el resultado; lo resuelve la [recuperación](#recuperación-de-procesos-pendientes) | no |
 | `CONFIRMADO` | la cátedra confirmó la reserva | sí (solo puede pasar a `CANCELADO`) |
 | `VENCIDO` | venció el hold | sí |
 | `INVALIDO` | la cátedra invalidó el proceso | sí |
@@ -364,6 +364,27 @@ La app consulta en qué paso está su reserva (CU-07), por ejemplo después de u
 | `RECHAZADO` | la cátedra rechazó el hold | sí |
 
 Un estado final no cambia más: un proceso terminado no se reabre.
+
+### Recuperación de procesos pendientes
+
+Un proceso puede quedar a medias: un timeout al crear o confirmar el hold (`INCIERTO`), un reinicio del servicio en medio de una reserva o un evento de la cátedra que nunca llegó. Mientras siga abierto, el usuario no puede iniciar otra reserva. La recuperación los resuelve (CU-10).
+
+Corre apenas arranca el servicio y después cada `turnos.recuperacion.intervalo` (por defecto `1m`), contado desde que termina la ronda anterior, así dos rondas nunca se superponen. Revisa solo los procesos abiertos y, por cada usuario, consulta una sola vez sus reservas en la cátedra (`GET /api/appointments`) con los identificadores guardados:
+
+| Situación | Resultado |
+|---|---|
+| La cátedra informa la reserva `CONFIRMED` | `CONFIRMADO`, con su `reservationId` |
+| La cátedra informa `CANCELLED` | `CANCELADO` |
+| La cátedra informa `FAILED` | `INVALIDO` |
+| `PHONE_PENDING`, o todavía no figura, y no venció | Sin cambios: lo resuelve el evento de Kafka |
+| Pasó `venceEn` más `turnos.recuperacion.margen` (`2m`) sin resultado final | `VENCIDO` |
+| Sin hold (no hay `venceEn`) y pasó `turnos.recuperacion.espera-sin-hold` (`15m`) desde que se creó | `VENCIDO`, sin consultar a la cátedra |
+
+- **Nunca repite efectos:** solo consulta. No vuelve a crear ni a confirmar un hold, así que no puede duplicar una reserva.
+- **Nunca reabre un estado final.** Si un evento cambia el proceso mientras se revisa, se deja lo del evento.
+- **Reintentos limitados y en el log:** cada proceso se revisa una vez por ronda. Si la cátedra no responde, queda un `warn` y se reintenta en la ronda siguiente; los que ya vencieron se cierran igual. Como todo proceso termina cerrándose al vencer, los intentos tienen un límite. Cada cambio queda en el log y cada ronda termina con un resumen (revisados, resueltos y pendientes).
+- **La cátedra tiene la última palabra:** si se cerró como `VENCIDO` un proceso que la cátedra sí confirmó, el evento `AppointmentConfirmed` lo pasa a `CONFIRMADO`.
+- En las pruebas la ejecución periódica está apagada (`turnos.recuperacion.habilitada=false`) y la recuperación se prueba llamando al servicio directo.
 
 ## Integración con la cátedra
 
