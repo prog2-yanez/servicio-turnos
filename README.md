@@ -314,10 +314,10 @@ La app consulta en qué paso está su reserva (CU-07), por ejemplo después de u
 ```
 
 - `venceEn` aparece solo mientras el proceso sigue abierto; en uno terminado es `null`.
-- `motivo` es el que informó la cátedra al invalidar o cancelar.
+- `motivo` es el que informó la cátedra al invalidar o cancelar, o el que puso el usuario al cancelar.
 - `abierto` y `puedeEnviarTelefono` le dicen a la app qué puede hacer, sin que tenga que repetir las reglas de los estados.
 - Un usuario solo ve sus propios procesos: uno ajeno responde `404 proceso-no-encontrado`, igual que uno inexistente, para no revelar que existe. Sin proceso abierto, `en-curso` responde `404 sin-proceso-en-curso`.
-- La respuesta es la misma que devuelven `POST /api/v1/reservas` y `POST /api/v1/reservas/{id}/telefono`. Nunca incluye los identificadores de la cátedra.
+- La respuesta es la misma que devuelven `POST /api/v1/reservas`, `POST /api/v1/reservas/{id}/telefono` y `POST /api/v1/reservas/{id}/cancelar`. Nunca incluye los identificadores de la cátedra.
 
 ### Mis reservas
 
@@ -347,6 +347,32 @@ La app consulta en qué paso está su reserva (CU-07), por ejemplo después de u
 - **Cómo se combinan:** por `reservationProcessId`. Si turnos y la cátedra no coinciden, se muestra lo de la cátedra, sin cambiar la base (eso lo corrige la recuperación). Mientras se espera el teléfono se muestra el paso local, que es más preciso. Una reserva que solo conoce la cátedra sale con `procesoId: null`; una que solo conoce turnos sale sin nombre del profesional ni hora de fin.
 - **Si la cátedra no responde:** se responde `200` igual, con lo guardado en turnos y `"desactualizado": true`, para que la app avise que puede faltar algo reciente.
 - Nunca se muestran los identificadores de la cátedra ni el nombre y teléfono del paciente que devuelve la cátedra.
+
+### Cancelar una reserva
+
+`POST /api/v1/reservas/{id}/cancelar` cancela una reserva confirmada del usuario (CU-09). `{id}` es el del proceso, el mismo de `GET /api/v1/reservas/{id}` y el `procesoId` de "mis reservas". El body es opcional:
+
+```json
+{ "motivo": "No puedo ir" }
+```
+
+El motivo puede tener hasta 500 caracteres y se le pasa a la cátedra. Responde `200` con el proceso en `CANCELADO`.
+
+1. Si el proceso no existe o es de otro usuario, responde `404 proceso-no-encontrado`, igual que al consultarlo.
+2. Si ya está `CANCELADO`, responde `200` con el proceso sin volver a llamar a la cátedra: cancelar dos veces no es un error.
+3. Si no está `CONFIRMADO`, responde `409 reserva-no-cancelable`. Un turno retenido que todavía no se confirmó no se cancela: se deja vencer.
+4. Le pide la cancelación a la cátedra (`POST /api/appointments/{reservationProcessId}/cancel`, contrato, sección 12) con el JWT técnico. La cátedra la trata como idempotente.
+
+| Respuesta de la cátedra | Resultado |
+|---|---|
+| `200` con `CANCELLED` | `200`, el proceso queda `CANCELADO` |
+| `409 RESERVATION_NOT_CANCELLABLE` | `409 reserva-no-cancelable`, sigue `CONFIRMADO` |
+| Timeout, sin conexión o `5xx` | Se verifica antes de responder (ver abajo) |
+| Otro rechazo (`RESERVATION_NOT_FOUND`, `RESERVATION_OWNER_MISMATCH`, cuenta técnica) | `503 catedra-no-disponible`, sigue `CONFIRMADO` y queda un error en el log |
+
+- **Un timeout no se informa como cancelación hecha:** la cátedra pudo haberla cancelado o no. Turnos consulta la reserva en la cátedra (`GET /api/appointments`): si figura `CANCELLED`, el proceso queda `CANCELADO` y responde `200`; si sigue confirmada o la consulta también falla, responde `503 cancelacion-no-confirmada` y el proceso sigue `CONFIRMADO`. Reintentar es seguro porque cancelar es idempotente.
+- **Lo que llegue primero:** la cátedra también publica `AppointmentCancelled`. Si el evento llega antes que la respuesta, el proceso ya está `CANCELADO` y la respuesta no lo vuelve a tocar; si llega después, el evento se ignora porque el proceso ya terminó.
+- Turnos nunca marca una reserva como cancelada sin que la cátedra lo confirme, ya sea por la respuesta, por la verificación o por el evento.
 
 ### Estados de un proceso
 
