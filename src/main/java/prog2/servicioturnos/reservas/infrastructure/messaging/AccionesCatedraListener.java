@@ -36,7 +36,9 @@ public class AccionesCatedraListener {
     }
 
     // El offset se confirma recién cuando este método termina bien; si tira una excepción, Kafka reintenta.
-    @KafkaListener(id = "acciones-catedra", topics = "${catedra.kafka.topic-acciones}")
+    // El grupo es el que asigna la cátedra; sin groupId, Spring usaría el id del listener como grupo.
+    @KafkaListener(id = "acciones-catedra", groupId = "${catedra.kafka.consumer-group}",
+            topics = "${catedra.kafka.topic-acciones}")
     public void recibir(String mensaje) {
         AccionCatedraMensaje accion;
         try {
