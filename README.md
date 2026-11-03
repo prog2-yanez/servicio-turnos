@@ -18,6 +18,42 @@ Este repositorio contiene por ahora la base técnica del servicio: arranque con 
 
 El resto del sistema (servicio de catálogo, app y documentación) vive en repositorios aparte.
 
+## Arquitectura
+
+```mermaid
+flowchart LR
+    app["App Android (KMP)"]
+    subgraph propios["Servicios propios"]
+        turnos["Servicio de turnos"]
+        catalogo["Servicio de catálogo"]
+        dbt[("PostgreSQL de turnos")]
+        dbc[("PostgreSQL del catálogo")]
+    end
+    subgraph catedra["Servicio central de la cátedra"]
+        api["API REST"]
+        kafka[["Kafka"]]
+        redis[("Redis")]
+    end
+
+    app -- "REST + JWT del usuario" --> turnos
+    app -- "REST + JWT del usuario" --> catalogo
+    turnos -- "REST + JWT del usuario (reenviado)" --> catalogo
+    turnos --- dbt
+    catalogo --- dbc
+    turnos -- "REST + JWT técnico: ocupaciones, holds, reservas, cancelación" --> api
+    kafka -- "acciones de cada reserva" --> turnos
+    turnos -- "teléfono del paciente" --> kafka
+    catalogo -- "REST + JWT técnico: snapshot" --> api
+    redis -- "cambios del catálogo" --> catalogo
+    kafka -- "aviso de versión nueva" --> catalogo
+```
+
+- **La app** solo habla con los servicios propios, nunca con la cátedra. En cada pedido manda el JWT del usuario que emite turnos.
+- **Turnos** es dueño de las cuentas de usuario y de los procesos de reserva, y es el único que escribe en su base. Para la agenda le pregunta al catálogo, reenviando el JWT del usuario; para las ocupaciones y las reservas habla con la cátedra con el JWT técnico. Recibe por Kafka el resultado de cada reserva y publica ahí el teléfono del paciente.
+- **El catálogo** guarda una copia de categorías, profesionales y horarios, y la mantiene al día con la cátedra (snapshot por REST, cambios por Redis y avisos por Kafka). Valida el mismo JWT de usuario con la clave compartida `JWT_SECRETO`.
+- **Cada servicio tiene su propia base** y no lee la del otro: si necesita un dato, se lo pide por la API.
+- **Dos identidades que no se mezclan:** el JWT del usuario circula entre la app y los servicios propios; el JWT técnico de la cátedra lo usa solo el backend y nunca llega a la app.
+
 ## Tecnologías
 
 | Tecnología | Uso |
@@ -548,3 +584,101 @@ SonarCloud no cuenta la clase `ServicioTurnosApplication` en la cobertura, porqu
 - **Flyway es el único que crea o modifica el esquema.** Las migraciones están en `src/main/resources/db/migration/` y se nombran `V1__descripcion.sql`, `V2__descripcion.sql`, etc.
 - Una migración ya aplicada no se edita: cada cambio es una migración nueva.
 - Hibernate trabaja con `ddl-auto=validate`: solo comprueba que las entidades coincidan con el esquema y nunca lo modifica.
+
+## Organización del código
+
+Arquitectura hexagonal: las reglas del negocio no dependen de Spring, de la base, de Kafka ni de la cátedra. El código está en `prog2.servicioturnos`, dividido en tres módulos que se comunican solo por sus puertos:
+
+| Módulo | Qué hace |
+|---|---|
+| `usuarios` | Registro, inicio de sesión, emisión del JWT y consulta de la cuenta |
+| `disponibilidad` | Turnos libres de un profesional: agenda del catálogo menos las ocupaciones de la cátedra |
+| `reservas` | Procesos de reserva: hold, teléfono, resultado por Kafka, consulta, cancelación y recuperación |
+
+Cada módulo tiene la misma estructura:
+
+```
+reservas/
+├── domain/
+│   ├── model             procesos, estados y reglas de cada transición
+│   ├── exception         errores del negocio, cada uno con su código
+│   └── ports             interfaces que el módulo ofrece (in) y necesita (out)
+├── application/
+│   └── usecases          casos de uso, una clase por acción
+└── infrastructure/
+    ├── web               controllers y DTO
+    ├── persistence       entidades JPA, repositorios y mappers
+    ├── catedra           clientes REST de la cátedra
+    ├── messaging         consumidor y productor de Kafka
+    ├── recuperacion      ejecución periódica de la recuperación
+    └── usuarios          adaptador al módulo de usuarios
+```
+
+- `config/` tiene la configuración de Spring (seguridad, JWT, CORS, clientes REST) y `shared/` lo común a los módulos: el formato de errores y la lectura de errores de la cátedra.
+- El dominio, las entidades JPA y los DTO son clases distintas, conectadas con mappers. El dominio usa `record` de Java y no importa nada de Spring ni de JPA.
+- `reservas` no lee la tabla de usuarios: le pide los datos de la cuenta al caso de uso público de `usuarios`.
+
+## Modelo de datos
+
+```mermaid
+erDiagram
+    usuario ||--o{ usuario_rol : tiene
+    rol ||--o{ usuario_rol : "se asigna en"
+    usuario ||--o{ proceso_reserva : inicia
+
+    usuario {
+        bigint id PK
+        varchar login UK
+        varchar contrasenia_hash
+        varchar email UK
+        boolean activado
+    }
+    rol {
+        varchar nombre PK
+    }
+    usuario_rol {
+        bigint usuario_id FK
+        varchar rol_nombre FK
+    }
+    proceso_reserva {
+        bigint id PK
+        bigint usuario_id FK
+        bigint profesional_id
+        date fecha
+        time hora_inicio
+        varchar estado
+        varchar reservation_process_id UK
+        timestamptz vence_en
+    }
+    evento_procesado {
+        varchar event_id PK
+        varchar tipo
+        timestamptz procesado_en
+    }
+```
+
+| Tabla | Qué guarda |
+|---|---|
+| `usuario` | Las cuentas: login y email únicos, la contraseña solo como hash Argon2id, nombre, idioma y auditoría |
+| `rol`, `usuario_rol` | Los roles de cada usuario (`ROLE_USER` al registrarse) |
+| `proceso_reserva` | Cada intento de reservar: usuario, profesional, fecha, hora, versión del catálogo con la que se validó, estado, identificadores de la cátedra (`hold_id`, `reservation_process_id`, `request_event_id`, `reservation_id`), motivo y vencimiento |
+| `evento_procesado` | El `eventId` de cada evento de Kafka ya aplicado, para descartar los repetidos |
+
+- **Un solo proceso abierto por usuario:** el índice único parcial `ux_proceso_abierto_por_usuario` lo garantiza en la base, aunque dos pedidos lleguen a la vez.
+- **El teléfono nunca se guarda:** es un dato personal que solo necesita la cátedra; se publica en Kafka y se descarta.
+- **Los identificadores de la cátedra** se guardan para reconciliar, pero ninguna respuesta de la API los muestra.
+- `profesional_id` no es una clave foránea: el profesional vive en la base del catálogo.
+- Los estados del proceso y sus transiciones están en [Estados de un proceso](#estados-de-un-proceso), y cómo se resuelven los que quedan a medias en [Recuperación de procesos pendientes](#recuperación-de-procesos-pendientes).
+
+### Idempotencia
+
+Repetir una acción o recibir dos veces el mismo mensaje nunca duplica una reserva ni cambia un resultado:
+
+| Situación | Cómo se evita el efecto repetido |
+|---|---|
+| Kafka entrega dos veces el mismo evento | Su `eventId` se registra en `evento_procesado` en la misma transacción que el cambio del proceso; si ya estaba, se descarta |
+| Llega un evento tardío sobre un proceso terminado | Las transiciones del dominio no reabren un estado final; el evento queda en el log y se ignora |
+| El usuario cancela dos veces | La segunda vez se devuelve el proceso ya cancelado sin llamar a la cátedra, que además trata la cancelación como idempotente |
+| La cátedra no contesta (timeout) | El proceso queda `INCIERTO` y no se reintenta a ciegas: antes se consulta su estado con los identificadores guardados |
+| La recuperación revisa un proceso | Solo consulta a la cátedra; nunca vuelve a crear ni a confirmar un hold |
+| El usuario inicia dos reservas a la vez | El índice único de proceso abierto rechaza la segunda (`409 proceso-abierto`) |
