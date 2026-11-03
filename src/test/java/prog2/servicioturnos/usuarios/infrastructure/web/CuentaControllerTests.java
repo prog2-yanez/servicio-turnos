@@ -148,6 +148,18 @@ class CuentaControllerTests {
         verifyNoInteractions(iniciarSesion);
     }
 
+    // Un valor más largo que lo que permite el registro no puede ser una cuenta: no se llega a buscarla.
+    @Test
+    void unLoginConDatosDemasiadoLargosDevuelve400() {
+        MvcTestResult resultado = iniciar("{\"username\": \"" + "a".repeat(51) + "\", \"password\": \""
+                + "b".repeat(101) + "\"}");
+
+        assertThat(resultado).hasStatus(HttpStatus.BAD_REQUEST);
+        assertThat(resultado).bodyJson().extractingPath("$.detail").asString()
+                .contains("username: puede tener hasta 50 caracteres", "password: puede tener hasta 100 caracteres");
+        verifyNoInteractions(iniciarSesion);
+    }
+
     @Test
     void laContraseniaDelLoginNoApareceAlImprimirElPedido() {
         assertThat(new LoginRequest("ana", "secreta").toString()).doesNotContain("secreta").contains("****");

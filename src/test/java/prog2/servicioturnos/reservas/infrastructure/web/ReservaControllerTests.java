@@ -323,6 +323,30 @@ class ReservaControllerTests {
                 .contentType(MediaType.APPLICATION_JSON).content(cuerpo).exchange();
     }
 
+    @Test
+    void unIdQueNoEsPositivoResponde400SinLlamarALosCasosDeUso() {
+        MvcTestResult consultar = mvc.get().uri("/api/v1/reservas/0").with(usuario()).exchange();
+        MvcTestResult telefono = mandarTelefono(-1, "{\"telefono\": \"2615551234\"}");
+        MvcTestResult cancelacion = cancelar(0, "{}");
+
+        verificarProblema(consultar, HttpStatus.BAD_REQUEST, "parametro-invalido");
+        verificarProblema(telefono, HttpStatus.BAD_REQUEST, "parametro-invalido");
+        verificarProblema(cancelacion, HttpStatus.BAD_REQUEST, "parametro-invalido");
+        assertThat(consultar).bodyJson().extractingPath("$.detail").asString().contains("id", "debe ser mayor a 0");
+        verifyNoInteractions(consultarProceso, enviarTelefono, cancelarReserva);
+    }
+
+    @Test
+    void unProfesionalQueNoEsPositivoResponde400NombrandoElCampo() {
+        MvcTestResult resultado =
+                reservar("{\"profesionalId\": 0, \"fecha\": \"2026-11-03\", \"horaInicio\": \"09:00\"}");
+
+        verificarProblema(resultado, HttpStatus.BAD_REQUEST, "datos-invalidos");
+        assertThat(resultado).bodyJson().extractingPath("$.detail").asString()
+                .contains("profesionalId: debe ser mayor a 0");
+        verifyNoInteractions(iniciarReserva);
+    }
+
     private MvcTestResult mandarTelefono(long id, String cuerpo) {
         return mvc.post().uri("/api/v1/reservas/" + id + "/telefono").with(usuario())
                 .contentType(MediaType.APPLICATION_JSON).content(cuerpo).exchange();

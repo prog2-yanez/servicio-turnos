@@ -102,6 +102,39 @@ class DisponibilidadControllerTests {
                 .with(usuario()).exchange(), HttpStatus.BAD_REQUEST, "parametro-invalido");
     }
 
+    // El detalle nombra el parámetro y dice qué se esperaba, sin repetir el valor recibido.
+    @Test
+    void losErroresDeLosParametrosSeExplicanEnEspanol() {
+        MvcTestResult sinFecha = mvc.get().uri("/api/v1/disponibilidad/profesionales/15").with(usuario()).exchange();
+        MvcTestResult fechaMal = mvc.get().uri("/api/v1/disponibilidad/profesionales/15?fecha=03-11-2026")
+                .with(usuario()).exchange();
+        MvcTestResult idConLetras = mvc.get().uri("/api/v1/disponibilidad/profesionales/abc?fecha=2026-11-03")
+                .with(usuario()).exchange();
+
+        assertThat(sinFecha).bodyJson().extractingPath("$.detail")
+                .isEqualTo("Falta el parámetro obligatorio 'fecha'");
+        assertThat(fechaMal).bodyJson().extractingPath("$.detail")
+                .isEqualTo("El parámetro 'fecha' tiene que ser una fecha con el formato AAAA-MM-DD");
+        assertThat(fechaMal).bodyText().doesNotContain("03-11-2026");
+        assertThat(idConLetras).bodyJson().extractingPath("$.detail")
+                .isEqualTo("El parámetro 'id' tiene que ser un número entero");
+    }
+
+    @Test
+    void unIdOUnaCategoriaQueNoSonPositivosDevuelven400SinConsultar() {
+        MvcTestResult id = mvc.get().uri("/api/v1/disponibilidad/profesionales/0?fecha=2026-11-03")
+                .with(usuario()).exchange();
+        MvcTestResult categoria = mvc.get().uri("/api/v1/disponibilidad/profesionales?categoriaId=-1&fecha=2026-11-03")
+                .with(usuario()).exchange();
+
+        verificarProblema(id, HttpStatus.BAD_REQUEST, "parametro-invalido");
+        assertThat(id).bodyJson().extractingPath("$.detail").asString().contains("id", "debe ser mayor a 0");
+        verificarProblema(categoria, HttpStatus.BAD_REQUEST, "parametro-invalido");
+        assertThat(categoria).bodyJson().extractingPath("$.detail").asString()
+                .contains("categoriaId", "debe ser mayor a 0");
+        verifyNoInteractions(consultarTurnosLibres, buscarConTurnosLibres);
+    }
+
     @Test
     void unProfesionalInexistenteDevuelve404() {
         when(consultarTurnosLibres.consultar(99, MARTES)).thenThrow(new ProfesionalNoEncontradoException(99));

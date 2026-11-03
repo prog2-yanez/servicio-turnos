@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
@@ -120,8 +121,19 @@ class ManejadorErroresApiTests {
         MvcTestResult resultado = mvc.get().uri("/prueba/numero?valor=abc").exchange();
 
         verificarProblema(resultado, HttpStatus.BAD_REQUEST, "parametro-invalido", "/prueba/numero");
-        assertThat(resultado).bodyJson().extractingPath("$.detail").isEqualTo("valor: el valor 'abc' no es válido");
+        assertThat(resultado).bodyJson().extractingPath("$.detail")
+                .isEqualTo("El parámetro 'valor' tiene que ser un número entero");
         assertThat(resultado).bodyJson().extractingPath("$.title").isEqualTo("Parámetro inválido");
+        assertThat(resultado).bodyText().doesNotContain("abc");
+    }
+
+    @Test
+    void parametroObligatorioFaltanteNombraElParametroEnEspanol() {
+        MvcTestResult resultado = mvc.get().uri("/prueba/numero").exchange();
+
+        verificarProblema(resultado, HttpStatus.BAD_REQUEST, "parametro-invalido", "/prueba/numero");
+        assertThat(resultado).bodyJson().extractingPath("$.detail")
+                .isEqualTo("Falta el parámetro obligatorio 'valor'");
     }
 
     @Test
@@ -138,6 +150,7 @@ class ManejadorErroresApiTests {
 
         verificarProblema(resultado, HttpStatus.NOT_FOUND, "ruta-no-encontrada", "/no-existe");
         assertThat(resultado).bodyJson().extractingPath("$.title").isEqualTo("Ruta no encontrada");
+        assertThat(resultado).bodyJson().extractingPath("$.detail").isEqualTo("No existe la ruta /no-existe");
     }
 
     @Test
@@ -145,6 +158,9 @@ class ManejadorErroresApiTests {
         MvcTestResult resultado = mvc.delete().uri("/prueba/conflicto").exchange();
 
         verificarProblema(resultado, HttpStatus.METHOD_NOT_ALLOWED, "metodo-no-permitido", "/prueba/conflicto");
+        assertThat(resultado).bodyJson().extractingPath("$.detail")
+                .isEqualTo("El método DELETE no está permitido en esta ruta");
+        assertThat(resultado).hasHeader(HttpHeaders.ALLOW, "GET");
     }
 
     @Test
@@ -155,6 +171,8 @@ class ManejadorErroresApiTests {
                 .exchange();
 
         verificarProblema(resultado, HttpStatus.UNSUPPORTED_MEDIA_TYPE, "formato-no-soportado", "/prueba/usuarios");
+        // Spring no deja su detalle en inglés.
+        assertThat(resultado).bodyJson().extractingPath("$.detail").isEqualTo("El pedido no se pudo procesar (415)");
     }
 
     @Test

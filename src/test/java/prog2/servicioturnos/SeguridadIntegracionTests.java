@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -93,6 +94,15 @@ class SeguridadIntegracionTests {
     }
 
     // Cada prueba registra un login nuevo, así no depende de lo que ya haya en la base.
+    // Sin CORS_ORIGENES_PERMITIDOS ningún navegador de otro origen puede usar turnos.
+    @Test
+    void sinOrigenesConfiguradosUnNavegadorDeOtroOrigenSeRechaza() {
+        MvcTestResult resultado = mvc.get().uri("/actuator/health")
+                .header(HttpHeaders.ORIGIN, "https://panel.ejemplo.com").exchange();
+
+        verificar(resultado, HttpStatus.FORBIDDEN, "origen-no-permitido");
+    }
+
     private Registrado registrar() {
         String login = "seguridad." + UUID.randomUUID().toString().substring(0, 8);
         String email = login + "@mail.com";
