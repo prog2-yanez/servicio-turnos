@@ -8,7 +8,7 @@
 
 Servicio backend del sistema de turnos médicos. Maneja las cuentas de usuario, arma la disponibilidad de cada profesional y lleva adelante las reservas contra el servicio central de la cátedra.
 
-Este repositorio contiene por ahora la base técnica del servicio: arranque con Spring Boot 4, PostgreSQL, migraciones con Flyway, endpoint de salud y pruebas de integración con una base real.
+Forma parte de un sistema con una app Android, este servicio y el servicio de catálogo, integrado con el servicio central de la cátedra (ver [Arquitectura](#arquitectura)).
 
 ## Qué hace el servicio
 
@@ -18,18 +18,61 @@ Este repositorio contiene por ahora la base técnica del servicio: arranque con 
 
 El resto del sistema (servicio de catálogo, app y documentación) vive en repositorios aparte.
 
+## Arquitectura
+
+```mermaid
+flowchart LR
+    app["App Android (KMP)"]
+    subgraph propios["Servicios propios"]
+        turnos["Servicio de turnos"]
+        catalogo["Servicio de catálogo"]
+        dbt[("PostgreSQL de turnos")]
+        dbc[("PostgreSQL del catálogo")]
+    end
+    subgraph catedra["Servicio central de la cátedra"]
+        api["API REST"]
+        kafka[["Kafka"]]
+        redis[("Redis")]
+    end
+
+    app -- "REST + JWT del usuario" --> turnos
+    app -- "REST + JWT del usuario" --> catalogo
+    turnos -- "REST + JWT del usuario (reenviado)" --> catalogo
+    turnos --- dbt
+    catalogo --- dbc
+    turnos -- "REST + JWT técnico: ocupaciones, holds, reservas, cancelación" --> api
+    kafka -- "acciones de cada reserva" --> turnos
+    turnos -- "teléfono del paciente" --> kafka
+    catalogo -- "REST + JWT técnico: snapshot" --> api
+    redis -- "cambios del catálogo" --> catalogo
+    kafka -- "aviso de versión nueva" --> catalogo
+```
+
+- **La app** solo habla con los servicios propios, nunca con la cátedra. En cada pedido manda el JWT del usuario que emite turnos.
+- **Turnos** es dueño de las cuentas de usuario y de los procesos de reserva, y es el único que escribe en su base. Para la agenda le pregunta al catálogo, reenviando el JWT del usuario; para las ocupaciones y las reservas habla con la cátedra con el JWT técnico. Recibe por Kafka el resultado de cada reserva y publica ahí el teléfono del paciente.
+- **El catálogo** guarda una copia de categorías, profesionales y horarios, y la mantiene al día con la cátedra (snapshot por REST, cambios por Redis y avisos por Kafka). Valida el mismo JWT de usuario con la clave compartida `JWT_SECRETO`.
+- **Cada servicio tiene su propia base** y no lee la del otro: si necesita un dato, se lo pide por la API.
+- **Dos identidades que no se mezclan:** el JWT del usuario circula entre la app y los servicios propios; el JWT técnico de la cátedra lo usa solo el backend y nunca llega a la app.
+
 ## Tecnologías
 
 | Tecnología | Uso |
 |---|---|
 | Java 21 | Lenguaje |
-| Spring Boot 4.1.2 | Aplicación web, JPA, validación y Actuator |
+| Spring Boot 4.1.2 | Aplicación web, JPA, validación, Actuator y tareas programadas |
+| Spring Security + OAuth2 Resource Server | Validación del JWT de los usuarios y roles |
+| Argon2id (Bouncy Castle) | Hash de las contraseñas |
+| Spring Kafka | Eventos de la cátedra y publicación del teléfono |
+| RestClient | Llamadas al catálogo y a la cátedra, con timeouts |
 | Maven (wrapper `mvnw`) | Compilación y dependencias |
 | PostgreSQL 17 | Base de datos |
 | Flyway | Migraciones del esquema |
 | Docker Compose | Base de datos local |
-| Testcontainers | Pruebas contra un PostgreSQL real y temporal |
-| Lombok | Menos código repetitivo |
+| JUnit 5, Mockito y Testcontainers | Pruebas unitarias y de integración contra un PostgreSQL real y temporal |
+| Kafka embebido (`spring-kafka-test`) | Pruebas de los eventos sin la cátedra |
+| JaCoCo y SonarCloud | Cobertura y análisis de calidad en cada pull request |
+| Postman y Newman | Pruebas de la API de punta a punta |
+| Lombok | Menos código repetitivo en las entidades JPA |
 
 ## Requisitos
 
@@ -520,19 +563,18 @@ La respuesta esperada es `{"status":"UP"}`: el servicio está en marcha y llega 
 
 Compila, ejecuta las pruebas y genera el reporte de cobertura. Las pruebas levantan un PostgreSQL 17 temporal con Testcontainers, por lo que Docker tiene que estar en marcha. No usan `.env` ni la base de desarrollo.
 
-| Prueba | Qué comprueba |
-|---|---|
-| `ServicioTurnosApplicationTests` | Que la aplicación arranca |
-| `MigracionFlywayTests` | Que Flyway aplica las migraciones y no queda ninguna pendiente |
-| `EndpointSaludTests` | Que `/actuator/health` responde `UP` sin mostrar detalles internos |
-| `ManejadorErroresApiTests` | El formato ProblemDetail de cada tipo de error |
-| `UsuarioTests`, `RegistrarUsuarioServiceTests` | Las reglas del registro: cuenta activa con `ROLE_USER`, login y email repetidos |
-| `CifradorArgon2idTests`, `EmisorTokensJwtTests`, `JwtPropertiesTests` | Hash Argon2id, contenido y firma del JWT, clave mínima |
-| `UsuarioPersistenciaTests` | Guardar usuarios y buscarlos por login y email contra PostgreSQL |
-| `IniciarSesionServiceTests` | Las reglas del inicio de sesión: credenciales correctas, contraseña errónea, usuario inexistente y cuenta inactiva |
-| `ConsultarCuentaServiceTests` | La cuenta se busca por el login del token |
-| `CuentaControllerTests` | Registro (201, 400 y 409), login (200, 400 y 401) y `GET /api/v1/cuenta` (200, 401, 403 y 404) |
-| `SeguridadIntegracionTests` | Con la aplicación completa: token real, sin token, token alterado, vencido, de otro emisor y sin rol |
+Hay pruebas unitarias del dominio y de cada caso de uso, de los controllers (con MockMvc), de los clientes REST (con un servidor simulado), de la persistencia contra PostgreSQL y de Kafka con un broker embebido.
+
+| Área | Pruebas | Qué comprueban |
+|---|---|---|
+| Arranque y base | `ServicioTurnosApplicationTests`, `MigracionFlywayTests`, `EndpointSaludTests` | Que la aplicación arranca, que Flyway aplica todas las migraciones y que el health responde `UP` sin detalles |
+| Errores | `ManejadorErroresApiTests` | El formato ProblemDetail de cada error, en español y sin trazas |
+| Seguridad | `SeguridadIntegracionTests`, `CorsIntegracionTests`, `CorsPropertiesTests`, `JwtPropertiesTests`, `EmisorTokensJwtTests` | Tokens reales, alterados, vencidos, de otro emisor y sin rol; orígenes permitidos y rechazados; clave mínima del JWT |
+| Cuentas | `UsuarioTests`, `RegistrarUsuarioServiceTests`, `IniciarSesionServiceTests`, `ConsultarCuentaServiceTests`, `CifradorArgon2idTests`, `UsuarioPersistenciaTests`, `CuentaControllerTests` | Registro, login, consulta de la cuenta y hash de la contraseña |
+| Disponibilidad | `CalculadoraTurnosLibresTests`, `ConsultarTurnosLibresServiceTests`, `BuscarProfesionalesConTurnosLibresServiceTests`, `CatalogoRestAdapterTests`, `OcupacionesCatedraRestAdapterTests`, `DisponibilidadControllerTests` | Cálculo de turnos libres, fechas pasadas, ocupaciones y errores del catálogo y la cátedra |
+| Reservas | `ProcesoReservaTests`, `ProcesoReservaTelefonoTests`, `ProcesoReservaResultadoTests`, `TelefonoTests`, `IniciarReservaServiceTests`, `EnviarTelefonoServiceTests`, `ConsultarProcesoServiceTests`, `ListarReservasPropiasServiceTests`, `CancelarReservaServiceTests`, `HoldsCatedraRestAdapterTests`, `ReservasCatedraRestAdapterTests`, `CuentasPacientesAdapterTests`, `ProcesoReservaPersistenciaTests`, `ReservaControllerTests` | Transiciones de estado, timeouts inciertos, un proceso abierto por usuario, teléfono, mis reservas sin datos ajenos y cancelación idempotente |
+| Eventos | `ProcesarAccionesCatedraServiceTests`, `ProcesarResultadosServiceTests`, `AccionesCatedraListenerTests`, `PublicadorTelefonoKafkaTests`, `KafkaConfigTests`, `EventosProcesadosPersistenciaTests`, `TelefonoKafkaIntegracionTests`, `ResultadosKafkaIntegracionTests` | Eventos repetidos y fuera de orden, publicación del teléfono y reintentos del consumidor |
+| Recuperación | `RecuperarProcesosServiceTests`, `RecuperacionProgramadaTests` | Reinicio con procesos pendientes, timeouts reconciliados, vencidos y ejecución periódica |
 
 ### Cobertura
 
@@ -548,3 +590,123 @@ SonarCloud no cuenta la clase `ServicioTurnosApplication` en la cobertura, porqu
 - **Flyway es el único que crea o modifica el esquema.** Las migraciones están en `src/main/resources/db/migration/` y se nombran `V1__descripcion.sql`, `V2__descripcion.sql`, etc.
 - Una migración ya aplicada no se edita: cada cambio es una migración nueva.
 - Hibernate trabaja con `ddl-auto=validate`: solo comprueba que las entidades coincidan con el esquema y nunca lo modifica.
+
+## Organización del código
+
+Arquitectura hexagonal: las reglas del negocio no dependen de Spring, de la base, de Kafka ni de la cátedra. El código está en `prog2.servicioturnos`, dividido en tres módulos que se comunican solo por sus puertos:
+
+| Módulo | Qué hace |
+|---|---|
+| `usuarios` | Registro, inicio de sesión, emisión del JWT y consulta de la cuenta |
+| `disponibilidad` | Turnos libres de un profesional: agenda del catálogo menos las ocupaciones de la cátedra |
+| `reservas` | Procesos de reserva: hold, teléfono, resultado por Kafka, consulta, cancelación y recuperación |
+
+Cada módulo tiene la misma estructura:
+
+```
+reservas/
+├── domain/
+│   ├── model             procesos, estados y reglas de cada transición
+│   ├── exception         errores del negocio, cada uno con su código
+│   └── ports             interfaces que el módulo ofrece (in) y necesita (out)
+├── application/
+│   └── usecases          casos de uso, una clase por acción
+└── infrastructure/
+    ├── web               controllers y DTO
+    ├── persistence       entidades JPA, repositorios y mappers
+    ├── catedra           clientes REST de la cátedra
+    ├── messaging         consumidor y productor de Kafka
+    ├── recuperacion      ejecución periódica de la recuperación
+    └── usuarios          adaptador al módulo de usuarios
+```
+
+- `config/` tiene la configuración de Spring (seguridad, JWT, CORS, clientes REST) y `shared/` lo común a los módulos: el formato de errores y la lectura de errores de la cátedra.
+- El dominio, las entidades JPA y los DTO son clases distintas, conectadas con mappers. El dominio usa `record` de Java y no importa nada de Spring ni de JPA.
+- `reservas` no lee la tabla de usuarios: le pide los datos de la cuenta al caso de uso público de `usuarios`.
+
+## Modelo de datos
+
+```mermaid
+erDiagram
+    usuario ||--o{ usuario_rol : tiene
+    rol ||--o{ usuario_rol : "se asigna en"
+    usuario ||--o{ proceso_reserva : inicia
+
+    usuario {
+        bigint id PK
+        varchar login UK
+        varchar contrasenia_hash
+        varchar email UK
+        boolean activado
+    }
+    rol {
+        varchar nombre PK
+    }
+    usuario_rol {
+        bigint usuario_id FK
+        varchar rol_nombre FK
+    }
+    proceso_reserva {
+        bigint id PK
+        bigint usuario_id FK
+        bigint profesional_id
+        date fecha
+        time hora_inicio
+        varchar estado
+        varchar reservation_process_id UK
+        timestamptz vence_en
+    }
+    evento_procesado {
+        varchar event_id PK
+        varchar tipo
+        timestamptz procesado_en
+    }
+```
+
+| Tabla | Qué guarda |
+|---|---|
+| `usuario` | Las cuentas: login y email únicos, la contraseña solo como hash Argon2id, nombre, idioma y auditoría |
+| `rol`, `usuario_rol` | Los roles de cada usuario (`ROLE_USER` al registrarse) |
+| `proceso_reserva` | Cada intento de reservar: usuario, profesional, fecha, hora, versión del catálogo con la que se validó, estado, identificadores de la cátedra (`hold_id`, `reservation_process_id`, `request_event_id`, `reservation_id`), motivo y vencimiento |
+| `evento_procesado` | El `eventId` de cada evento de Kafka ya aplicado, para descartar los repetidos |
+
+- **Un solo proceso abierto por usuario:** el índice único parcial `ux_proceso_abierto_por_usuario` lo garantiza en la base, aunque dos pedidos lleguen a la vez.
+- **El teléfono nunca se guarda:** es un dato personal que solo necesita la cátedra; se publica en Kafka y se descarta.
+- **Los identificadores de la cátedra** se guardan para reconciliar, pero ninguna respuesta de la API los muestra.
+- `profesional_id` no es una clave foránea: el profesional vive en la base del catálogo.
+- Los estados del proceso y sus transiciones están en [Estados de un proceso](#estados-de-un-proceso), y cómo se resuelven los que quedan a medias en [Recuperación de procesos pendientes](#recuperación-de-procesos-pendientes).
+
+### Idempotencia
+
+Repetir una acción o recibir dos veces el mismo mensaje nunca duplica una reserva ni cambia un resultado:
+
+| Situación | Cómo se evita el efecto repetido |
+|---|---|
+| Kafka entrega dos veces el mismo evento | Su `eventId` se registra en `evento_procesado` en la misma transacción que el cambio del proceso; si ya estaba, se descarta |
+| Llega un evento tardío sobre un proceso terminado | Las transiciones del dominio no reabren un estado final; el evento queda en el log y se ignora |
+| El usuario cancela dos veces | La segunda vez se devuelve el proceso ya cancelado sin llamar a la cátedra, que además trata la cancelación como idempotente |
+| La cátedra no contesta (timeout) | El proceso queda `INCIERTO` y no se reintenta a ciegas: antes se consulta su estado con los identificadores guardados |
+| La recuperación revisa un proceso | Solo consulta a la cátedra; nunca vuelve a crear ni a confirmar un hold |
+| El usuario inicia dos reservas a la vez | El índice único de proceso abierto rechaza la segunda (`409 proceso-abierto`) |
+
+## Decisiones técnicas y de seguridad
+
+| Decisión | Motivo |
+|---|---|
+| Arquitectura hexagonal con tres módulos | Las reglas del negocio se prueban sin Spring, sin base y sin la cátedra, y cada módulo cambia sin tocar a los otros |
+| Una base propia por servicio | Cada servicio es dueño de sus datos; el catálogo y turnos solo se comunican por su API |
+| Turnos emite el JWT de los usuarios (HS256, clave compartida con el catálogo) | Un solo lugar maneja las cuentas; el catálogo valida firma, vencimiento, emisor y rol sin consultar a turnos (ADR 0003) |
+| Contraseñas con Argon2id | Algoritmo recomendado para contraseñas, lento y con sal aleatoria |
+| El usuario sale siempre del token | Nadie puede actuar a nombre de otro cambiando un dato del pedido; un proceso ajeno se responde como inexistente |
+| JWT técnico de la cátedra solo en el backend | La app nunca tiene credenciales de la cátedra ni puede llamarla directamente |
+| Sin sesión ni cookies, CSRF desactivado | Cada pedido se valida solo con su token, así que CSRF no aplica |
+| CORS cerrado por defecto | La app Android no lo necesita; un cliente web tendría que habilitarse explícitamente |
+| El teléfono no se guarda ni se devuelve | Es un dato personal que solo necesita la cátedra |
+| Los identificadores de la cátedra no salen en la API | La app trabaja solo con el id del proceso de turnos |
+| Un timeout es "incierto", no un error | La cátedra pudo haber hecho el cambio: se consulta antes de repetir nada |
+| Eventos deduplicados por `eventId` en la misma transacción | Un mensaje repetido de Kafka no tiene efecto, y si algo falla no queda ni el cambio ni el registro |
+| Validación en los controllers y errores ProblemDetail en español | Un dato inválido no llega al caso de uso, y ningún error muestra trazas ni el valor recibido |
+| Configuración por variables de entorno (`.env`, sin versionar) | No hay contraseñas, tokens ni direcciones de la cátedra en el repositorio ni en los logs |
+| Flyway con Hibernate en `validate` | El esquema tiene un único responsable y queda versionado |
+| Pruebas con Testcontainers y Kafka embebido | Se prueba contra PostgreSQL y Kafka reales, no contra simulaciones |
+| Un solo endpoint de Actuator, sin detalles | No se expone información interna del servicio |
