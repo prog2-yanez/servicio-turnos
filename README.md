@@ -534,6 +534,33 @@ Compila, ejecuta las pruebas y genera el reporte de cobertura. Las pruebas levan
 | `CuentaControllerTests` | Registro (201, 400 y 409), login (200, 400 y 401) y `GET /api/v1/cuenta` (200, 401, 403 y 404) |
 | `SeguridadIntegracionTests` | Con la aplicación completa: token real, sin token, token alterado, vencido, de otro emisor y sin rol |
 
+### Pruebas de la API con Postman y Newman
+
+La carpeta `postman/` tiene una colección que prueba la API de punta a punta con el servicio levantado, como la usa la app.
+
+| Archivo | Qué tiene |
+|---|---|
+| `turnos.postman_collection.json` | Cuenta, disponibilidad, reservas y health. Cada endpoint tiene al menos un caso exitoso y uno de error. |
+| `local.postman_environment.json` | `baseUrl` (por defecto `http://localhost:8081`), `categoriaId` (por defecto `1`) y `fecha` (vacía: usa la de mañana). No tiene datos reales. |
+
+Con turnos, el catálogo y la integración con la cátedra en marcha (el `.env` completo, incluido Kafka):
+
+```bash
+npx newman run postman/turnos.postman_collection.json -e postman/local.postman_environment.json
+```
+
+`npx` descarga Newman la primera vez; no hace falta instalarlo. También se puede importar la colección y el environment en Postman y ejecutarla desde ahí.
+
+Qué hace cada corrida:
+
+1. Registra un usuario nuevo (`newman-<hora>`, con una contraseña generada en el momento y datos ficticios) e inicia sesión. El token queda en una variable de la colección: no hay credenciales en ningún archivo.
+2. Busca los profesionales con turnos libres de `categoriaId` en `fecha` y toma el primero con su primer horario libre. No hay ids escritos en la colección.
+3. Reserva ese turno, espera el pedido de teléfono, manda un teléfono ficticio y espera la confirmación. Las esperas consultan `GET /api/v1/reservas/{id}` cada 2 segundos, hasta 30 segundos; si no llega a tiempo, el test lo informa con el estado en que quedó.
+4. Comprueba que la reserva aparece en "mis reservas" y la cancela, dos veces para probar que cancelar es idempotente. Así no queda ningún turno tomado en la cátedra.
+
+- Cada pedido verifica el status, el `Content-Type` y los campos principales; en los errores, que el cuerpo sea un ProblemDetail con su `type`. También verifica que las respuestas no muestran los identificadores de la cátedra ni repiten el teléfono.
+- Si no hay turnos libres en esa categoría y fecha, los pedidos de reserva se saltean con un aviso. Se pueden cambiar en el environment o al correr Newman, por ejemplo `--env-var "fecha=2026-11-10"`.
+
 ### Cobertura
 
 JaCoCo mide qué partes del código ejecutan las pruebas. Después de `./mvnw verify` el reporte queda en:
