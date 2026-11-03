@@ -8,7 +8,7 @@
 
 Servicio backend del sistema de turnos médicos. Maneja las cuentas de usuario, arma la disponibilidad de cada profesional y lleva adelante las reservas contra el servicio central de la cátedra.
 
-Este repositorio contiene por ahora la base técnica del servicio: arranque con Spring Boot 4, PostgreSQL, migraciones con Flyway, endpoint de salud y pruebas de integración con una base real.
+Forma parte de un sistema con una app Android, este servicio y el servicio de catálogo, integrado con el servicio central de la cátedra (ver [Arquitectura](#arquitectura)).
 
 ## Qué hace el servicio
 
@@ -59,13 +59,20 @@ flowchart LR
 | Tecnología | Uso |
 |---|---|
 | Java 21 | Lenguaje |
-| Spring Boot 4.1.2 | Aplicación web, JPA, validación y Actuator |
+| Spring Boot 4.1.2 | Aplicación web, JPA, validación, Actuator y tareas programadas |
+| Spring Security + OAuth2 Resource Server | Validación del JWT de los usuarios y roles |
+| Argon2id (Bouncy Castle) | Hash de las contraseñas |
+| Spring Kafka | Eventos de la cátedra y publicación del teléfono |
+| RestClient | Llamadas al catálogo y a la cátedra, con timeouts |
 | Maven (wrapper `mvnw`) | Compilación y dependencias |
 | PostgreSQL 17 | Base de datos |
 | Flyway | Migraciones del esquema |
 | Docker Compose | Base de datos local |
-| Testcontainers | Pruebas contra un PostgreSQL real y temporal |
-| Lombok | Menos código repetitivo |
+| JUnit 5, Mockito y Testcontainers | Pruebas unitarias y de integración contra un PostgreSQL real y temporal |
+| Kafka embebido (`spring-kafka-test`) | Pruebas de los eventos sin la cátedra |
+| JaCoCo y SonarCloud | Cobertura y análisis de calidad en cada pull request |
+| Postman y Newman | Pruebas de la API de punta a punta |
+| Lombok | Menos código repetitivo en las entidades JPA |
 
 ## Requisitos
 
@@ -556,19 +563,18 @@ La respuesta esperada es `{"status":"UP"}`: el servicio está en marcha y llega 
 
 Compila, ejecuta las pruebas y genera el reporte de cobertura. Las pruebas levantan un PostgreSQL 17 temporal con Testcontainers, por lo que Docker tiene que estar en marcha. No usan `.env` ni la base de desarrollo.
 
-| Prueba | Qué comprueba |
-|---|---|
-| `ServicioTurnosApplicationTests` | Que la aplicación arranca |
-| `MigracionFlywayTests` | Que Flyway aplica las migraciones y no queda ninguna pendiente |
-| `EndpointSaludTests` | Que `/actuator/health` responde `UP` sin mostrar detalles internos |
-| `ManejadorErroresApiTests` | El formato ProblemDetail de cada tipo de error |
-| `UsuarioTests`, `RegistrarUsuarioServiceTests` | Las reglas del registro: cuenta activa con `ROLE_USER`, login y email repetidos |
-| `CifradorArgon2idTests`, `EmisorTokensJwtTests`, `JwtPropertiesTests` | Hash Argon2id, contenido y firma del JWT, clave mínima |
-| `UsuarioPersistenciaTests` | Guardar usuarios y buscarlos por login y email contra PostgreSQL |
-| `IniciarSesionServiceTests` | Las reglas del inicio de sesión: credenciales correctas, contraseña errónea, usuario inexistente y cuenta inactiva |
-| `ConsultarCuentaServiceTests` | La cuenta se busca por el login del token |
-| `CuentaControllerTests` | Registro (201, 400 y 409), login (200, 400 y 401) y `GET /api/v1/cuenta` (200, 401, 403 y 404) |
-| `SeguridadIntegracionTests` | Con la aplicación completa: token real, sin token, token alterado, vencido, de otro emisor y sin rol |
+Hay pruebas unitarias del dominio y de cada caso de uso, de los controllers (con MockMvc), de los clientes REST (con un servidor simulado), de la persistencia contra PostgreSQL y de Kafka con un broker embebido.
+
+| Área | Pruebas | Qué comprueban |
+|---|---|---|
+| Arranque y base | `ServicioTurnosApplicationTests`, `MigracionFlywayTests`, `EndpointSaludTests` | Que la aplicación arranca, que Flyway aplica todas las migraciones y que el health responde `UP` sin detalles |
+| Errores | `ManejadorErroresApiTests` | El formato ProblemDetail de cada error, en español y sin trazas |
+| Seguridad | `SeguridadIntegracionTests`, `CorsIntegracionTests`, `CorsPropertiesTests`, `JwtPropertiesTests`, `EmisorTokensJwtTests` | Tokens reales, alterados, vencidos, de otro emisor y sin rol; orígenes permitidos y rechazados; clave mínima del JWT |
+| Cuentas | `UsuarioTests`, `RegistrarUsuarioServiceTests`, `IniciarSesionServiceTests`, `ConsultarCuentaServiceTests`, `CifradorArgon2idTests`, `UsuarioPersistenciaTests`, `CuentaControllerTests` | Registro, login, consulta de la cuenta y hash de la contraseña |
+| Disponibilidad | `CalculadoraTurnosLibresTests`, `ConsultarTurnosLibresServiceTests`, `BuscarProfesionalesConTurnosLibresServiceTests`, `CatalogoRestAdapterTests`, `OcupacionesCatedraRestAdapterTests`, `DisponibilidadControllerTests` | Cálculo de turnos libres, fechas pasadas, ocupaciones y errores del catálogo y la cátedra |
+| Reservas | `ProcesoReservaTests`, `ProcesoReservaTelefonoTests`, `ProcesoReservaResultadoTests`, `TelefonoTests`, `IniciarReservaServiceTests`, `EnviarTelefonoServiceTests`, `ConsultarProcesoServiceTests`, `ListarReservasPropiasServiceTests`, `CancelarReservaServiceTests`, `HoldsCatedraRestAdapterTests`, `ReservasCatedraRestAdapterTests`, `CuentasPacientesAdapterTests`, `ProcesoReservaPersistenciaTests`, `ReservaControllerTests` | Transiciones de estado, timeouts inciertos, un proceso abierto por usuario, teléfono, mis reservas sin datos ajenos y cancelación idempotente |
+| Eventos | `ProcesarAccionesCatedraServiceTests`, `ProcesarResultadosServiceTests`, `AccionesCatedraListenerTests`, `PublicadorTelefonoKafkaTests`, `KafkaConfigTests`, `EventosProcesadosPersistenciaTests`, `TelefonoKafkaIntegracionTests`, `ResultadosKafkaIntegracionTests` | Eventos repetidos y fuera de orden, publicación del teléfono y reintentos del consumidor |
+| Recuperación | `RecuperarProcesosServiceTests`, `RecuperacionProgramadaTests` | Reinicio con procesos pendientes, timeouts reconciliados, vencidos y ejecución periódica |
 
 ### Cobertura
 
@@ -682,3 +688,25 @@ Repetir una acción o recibir dos veces el mismo mensaje nunca duplica una reser
 | La cátedra no contesta (timeout) | El proceso queda `INCIERTO` y no se reintenta a ciegas: antes se consulta su estado con los identificadores guardados |
 | La recuperación revisa un proceso | Solo consulta a la cátedra; nunca vuelve a crear ni a confirmar un hold |
 | El usuario inicia dos reservas a la vez | El índice único de proceso abierto rechaza la segunda (`409 proceso-abierto`) |
+
+## Decisiones técnicas y de seguridad
+
+| Decisión | Motivo |
+|---|---|
+| Arquitectura hexagonal con tres módulos | Las reglas del negocio se prueban sin Spring, sin base y sin la cátedra, y cada módulo cambia sin tocar a los otros |
+| Una base propia por servicio | Cada servicio es dueño de sus datos; el catálogo y turnos solo se comunican por su API |
+| Turnos emite el JWT de los usuarios (HS256, clave compartida con el catálogo) | Un solo lugar maneja las cuentas; el catálogo valida firma, vencimiento, emisor y rol sin consultar a turnos (ADR 0003) |
+| Contraseñas con Argon2id | Algoritmo recomendado para contraseñas, lento y con sal aleatoria |
+| El usuario sale siempre del token | Nadie puede actuar a nombre de otro cambiando un dato del pedido; un proceso ajeno se responde como inexistente |
+| JWT técnico de la cátedra solo en el backend | La app nunca tiene credenciales de la cátedra ni puede llamarla directamente |
+| Sin sesión ni cookies, CSRF desactivado | Cada pedido se valida solo con su token, así que CSRF no aplica |
+| CORS cerrado por defecto | La app Android no lo necesita; un cliente web tendría que habilitarse explícitamente |
+| El teléfono no se guarda ni se devuelve | Es un dato personal que solo necesita la cátedra |
+| Los identificadores de la cátedra no salen en la API | La app trabaja solo con el id del proceso de turnos |
+| Un timeout es "incierto", no un error | La cátedra pudo haber hecho el cambio: se consulta antes de repetir nada |
+| Eventos deduplicados por `eventId` en la misma transacción | Un mensaje repetido de Kafka no tiene efecto, y si algo falla no queda ni el cambio ni el registro |
+| Validación en los controllers y errores ProblemDetail en español | Un dato inválido no llega al caso de uso, y ningún error muestra trazas ni el valor recibido |
+| Configuración por variables de entorno (`.env`, sin versionar) | No hay contraseñas, tokens ni direcciones de la cátedra en el repositorio ni en los logs |
+| Flyway con Hibernate en `validate` | El esquema tiene un único responsable y queda versionado |
+| Pruebas con Testcontainers y Kafka embebido | Se prueba contra PostgreSQL y Kafka reales, no contra simulaciones |
+| Un solo endpoint de Actuator, sin detalles | No se expone información interna del servicio |
