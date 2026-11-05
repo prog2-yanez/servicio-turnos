@@ -1,0 +1,1728 @@
+{
+  "info": {
+    "_postman_id": "49230108-3460-5906-adf8-b083ea83ee45",
+    "name": "Servicio de turnos",
+    "description": "Pruebas de punta a punta de la API de turnos. Necesita turnos, el catálogo y la integración con la cátedra levantados (ver README, sección Newman). Cada corrida registra un usuario nuevo, reserva un turno libre y lo cancela al final.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "idInexistente",
+      "value": "999999999"
+    },
+    {
+      "key": "telefono",
+      "value": "+5492610000000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Cuenta",
+      "item": [
+        {
+          "name": "Registrarse",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cuenta/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cuenta",
+                "registro"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{login}}\",\n  \"password\": \"{{password}}\",\n  \"firstName\": \"Paciente\",\n  \"lastName\": \"Newman\",\n  \"email\": \"{{login}}@ejemplo.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Cada corrida registra un usuario nuevo con datos ficticios."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Login y contraseña nuevos en cada corrida: no se versiona ninguna credencial.",
+                  "pm.collectionVariables.set('login', 'newman-' + Date.now());",
+                  "pm.collectionVariables.set('password', 'clave-' + Math.random().toString(36).slice(2, 12));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 201', () => pm.response.to.have.status(201));",
+                  "pm.test('el Content-Type es JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const cuerpo = pm.response.json();",
+                  "pm.test('devuelve el token y su vencimiento', () => {",
+                  "    pm.expect(cuerpo.id_token).to.be.a('string').and.not.empty;",
+                  "    pm.expect(cuerpo.venceEn).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrarse con un login repetido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cuenta/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cuenta",
+                "registro"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{login}}\",\n  \"password\": \"{{password}}\",\n  \"firstName\": \"Paciente\",\n  \"lastName\": \"Newman\",\n  \"email\": \"{{login}}@ejemplo.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 409', () => pm.response.to.have.status(409));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:login-repetido');",
+                  "    pm.expect(problema.status).to.eql(409);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrarse con datos inválidos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cuenta/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cuenta",
+                "registro"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"con espacios\",\n  \"password\": \"123\",\n  \"email\": \"no-es-un-email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:datos-invalidos');",
+                  "    pm.expect(problema.status).to.eql(400);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});",
+                  "pm.test('el detalle nombra cada campo', () => pm.expect(problema.detail).to.include('login').and.include('password').and.include('email'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar sesión",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cuenta/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cuenta",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{login}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('el Content-Type es JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const cuerpo = pm.response.json();",
+                  "pm.test('devuelve el token', () => pm.expect(cuerpo.id_token).to.be.a('string').and.not.empty);",
+                  "// Los pedidos siguientes usan este token.",
+                  "pm.collectionVariables.set('token', cuerpo.id_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar sesión con una contraseña incorrecta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cuenta/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cuenta",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{login}}\",\n  \"password\": \"otra-clave\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 401', () => pm.response.to.have.status(401));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:credenciales-invalidas');",
+                  "    pm.expect(problema.status).to.eql(401);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar sesión sin datos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cuenta/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cuenta",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:datos-invalidos');",
+                  "    pm.expect(problema.status).to.eql(400);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar la cuenta",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cuenta",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cuenta"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('el Content-Type es JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const cuerpo = pm.response.json();",
+                  "pm.test('es la cuenta del token', () => {",
+                  "    pm.expect(cuerpo.login).to.eql(pm.collectionVariables.get('login'));",
+                  "    pm.expect(cuerpo.firstName).to.eql('Paciente');",
+                  "    pm.expect(cuerpo.authorities).to.include('ROLE_USER');",
+                  "});",
+                  "pm.test('no muestra la contraseña', () => pm.expect(pm.response.text()).to.not.include(pm.collectionVariables.get('password')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar la cuenta sin token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cuenta",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cuenta"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 401', () => pm.response.to.have.status(401));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:no-autenticado');",
+                  "    pm.expect(problema.status).to.eql(401);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Disponibilidad",
+      "item": [
+        {
+          "name": "Profesionales con turnos libres",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/disponibilidad/profesionales?categoriaId={{categoriaId}}&fecha={{fechaTurno}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "disponibilidad",
+                "profesionales"
+              ],
+              "query": [
+                {
+                  "key": "categoriaId",
+                  "value": "{{categoriaId}}"
+                },
+                {
+                  "key": "fecha",
+                  "value": "{{fechaTurno}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sin fecha en el environment se usa la de mañana.",
+                  "const fecha = pm.environment.get('fecha') || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);",
+                  "pm.collectionVariables.set('fechaTurno', fecha);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('el Content-Type es JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const cuerpo = pm.response.json();",
+                  "pm.test('es una lista de profesionales con turnos libres', () => {",
+                  "    pm.expect(cuerpo).to.be.an('array');",
+                  "    cuerpo.forEach(p => {",
+                  "        pm.expect(p.id).to.be.a('number');",
+                  "        pm.expect(p.categoriaId).to.eql(Number(pm.variables.get('categoriaId')));",
+                  "        pm.expect(p.nombre).to.be.a('string');",
+                  "        pm.expect(p.turnosLibres).to.be.above(0);",
+                  "    });",
+                  "});",
+                  "// Se reserva con el primero, sin escribir ids en la colección.",
+                  "pm.collectionVariables.set('profesionalId', cuerpo.length ? cuerpo[0].id : '');",
+                  "if (!cuerpo.length) console.log('No hay turnos libres en esa categoría y fecha: cambiá categoriaId o fecha en el environment');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Profesionales con turnos libres sin fecha",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/disponibilidad/profesionales?categoriaId={{categoriaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "disponibilidad",
+                "profesionales"
+              ],
+              "query": [
+                {
+                  "key": "categoriaId",
+                  "value": "{{categoriaId}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:parametro-invalido');",
+                  "    pm.expect(problema.status).to.eql(400);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});",
+                  "pm.test('el detalle nombra el parámetro', () => pm.expect(problema.detail).to.include('fecha'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turnos libres de un profesional",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/disponibilidad/profesionales/{{profesionalId}}?fecha={{fechaTurno}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "disponibilidad",
+                "profesionales",
+                "{{profesionalId}}"
+              ],
+              "query": [
+                {
+                  "key": "fecha",
+                  "value": "{{fechaTurno}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('profesionalId')) {",
+                  "    console.log('Falta profesionalId (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('el Content-Type es JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const cuerpo = pm.response.json();",
+                  "pm.test('son los turnos libres del profesional', () => {",
+                  "    pm.expect(cuerpo.profesionalId).to.eql(Number(pm.collectionVariables.get('profesionalId')));",
+                  "    pm.expect(cuerpo.fecha).to.eql(pm.collectionVariables.get('fechaTurno'));",
+                  "    pm.expect(cuerpo.versionCatalogo).to.be.a('number');",
+                  "    pm.expect(cuerpo.turnos).to.be.an('array').that.is.not.empty;",
+                  "    cuerpo.turnos.forEach(t => pm.expect(t.horaInicio).to.match(/^\\d{2}:\\d{2}$/));",
+                  "});",
+                  "pm.collectionVariables.set('horaInicio', cuerpo.turnos.length ? cuerpo.turnos[0].horaInicio : '');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turnos libres con una fecha mal escrita",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/disponibilidad/profesionales/1?fecha=03-11-2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "disponibilidad",
+                "profesionales",
+                "1"
+              ],
+              "query": [
+                {
+                  "key": "fecha",
+                  "value": "03-11-2026"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:parametro-invalido');",
+                  "    pm.expect(problema.status).to.eql(400);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turnos libres de un profesional inexistente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/disponibilidad/profesionales/{{idInexistente}}?fecha={{fechaTurno}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "disponibilidad",
+                "profesionales",
+                "{{idInexistente}}"
+              ],
+              "query": [
+                {
+                  "key": "fecha",
+                  "value": "{{fechaTurno}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:profesional-no-encontrado');",
+                  "    pm.expect(problema.status).to.eql(404);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reservas",
+      "item": [
+        {
+          "name": "Reserva en curso sin ninguna",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas/en-curso",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "en-curso"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:sin-proceso-en-curso');",
+                  "    pm.expect(problema.status).to.eql(404);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reservar sin elegir el turno",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:datos-invalidos');",
+                  "    pm.expect(problema.status).to.eql(400);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});",
+                  "pm.test('el detalle nombra cada campo', () => pm.expect(problema.detail).to.include('profesionalId').and.include('fecha').and.include('horaInicio'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reservar un turno",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profesionalId\": {{profesionalId}},\n  \"fecha\": \"{{fechaTurno}}\",\n  \"horaInicio\": \"{{horaInicio}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('profesionalId')) {",
+                  "    console.log('Falta profesionalId (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}",
+                  "if (!pm.collectionVariables.get('horaInicio')) {",
+                  "    console.log('Falta horaInicio (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 201', () => pm.response.to.have.status(201));",
+                  "pm.test('el Content-Type es JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const cuerpo = pm.response.json();",
+                  "pm.collectionVariables.set('procesoId', cuerpo.id);",
+                  "pm.test('queda esperando el teléfono', () => {",
+                  "    pm.expect(cuerpo.estado).to.eql('ESPERANDO_TELEFONO');",
+                  "    pm.expect(cuerpo.abierto).to.be.true;",
+                  "    pm.expect(cuerpo.venceEn).to.be.a('string');",
+                  "});",
+                  "pm.test('es el proceso con sus datos', () => {",
+                  "    pm.expect(cuerpo.id).to.eql(Number(pm.collectionVariables.get('procesoId')));",
+                  "    pm.expect(cuerpo.estado).to.be.a('string');",
+                  "    pm.expect(cuerpo.abierto).to.be.a('boolean');",
+                  "    pm.expect(cuerpo.profesionalId).to.eql(Number(pm.collectionVariables.get('profesionalId')));",
+                  "    pm.expect(cuerpo.fecha).to.eql(pm.collectionVariables.get('fechaTurno'));",
+                  "    pm.expect(cuerpo.horaInicio).to.eql(pm.collectionVariables.get('horaInicio'));",
+                  "    pm.expect(cuerpo.puedeEnviarTelefono).to.be.a('boolean');",
+                  "});",
+                  "pm.test('no muestra los identificadores de la cátedra', () => {",
+                  "    pm.expect(cuerpo).to.not.have.any.keys('holdId', 'reservationProcessId', 'reservationId');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reservar con otro proceso abierto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profesionalId\": {{profesionalId}},\n  \"fecha\": \"{{fechaTurno}}\",\n  \"horaInicio\": \"{{horaInicio}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procesoId')) {",
+                  "    console.log('Falta procesoId (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 409', () => pm.response.to.have.status(409));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:proceso-abierto');",
+                  "    pm.expect(problema.status).to.eql(409);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar la reserva",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas/{{procesoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "{{procesoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procesoId')) {",
+                  "    console.log('Falta procesoId (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('el Content-Type es JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const cuerpo = pm.response.json();",
+                  "pm.test('es el proceso con sus datos', () => {",
+                  "    pm.expect(cuerpo.id).to.eql(Number(pm.collectionVariables.get('procesoId')));",
+                  "    pm.expect(cuerpo.estado).to.be.a('string');",
+                  "    pm.expect(cuerpo.abierto).to.be.a('boolean');",
+                  "    pm.expect(cuerpo.profesionalId).to.eql(Number(pm.collectionVariables.get('profesionalId')));",
+                  "    pm.expect(cuerpo.fecha).to.eql(pm.collectionVariables.get('fechaTurno'));",
+                  "    pm.expect(cuerpo.horaInicio).to.eql(pm.collectionVariables.get('horaInicio'));",
+                  "    pm.expect(cuerpo.puedeEnviarTelefono).to.be.a('boolean');",
+                  "});",
+                  "pm.test('no muestra los identificadores de la cátedra', () => {",
+                  "    pm.expect(cuerpo).to.not.have.any.keys('holdId', 'reservationProcessId', 'reservationId');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar una reserva inexistente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas/{{idInexistente}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "{{idInexistente}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:proceso-no-encontrado');",
+                  "    pm.expect(problema.status).to.eql(404);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reserva en curso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas/en-curso",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "en-curso"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procesoId')) {",
+                  "    console.log('Falta procesoId (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('el Content-Type es JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const cuerpo = pm.response.json();",
+                  "pm.test('es el proceso con sus datos', () => {",
+                  "    pm.expect(cuerpo.id).to.eql(Number(pm.collectionVariables.get('procesoId')));",
+                  "    pm.expect(cuerpo.estado).to.be.a('string');",
+                  "    pm.expect(cuerpo.abierto).to.be.a('boolean');",
+                  "    pm.expect(cuerpo.profesionalId).to.eql(Number(pm.collectionVariables.get('profesionalId')));",
+                  "    pm.expect(cuerpo.fecha).to.eql(pm.collectionVariables.get('fechaTurno'));",
+                  "    pm.expect(cuerpo.horaInicio).to.eql(pm.collectionVariables.get('horaInicio'));",
+                  "    pm.expect(cuerpo.puedeEnviarTelefono).to.be.a('boolean');",
+                  "});",
+                  "pm.test('no muestra los identificadores de la cátedra', () => {",
+                  "    pm.expect(cuerpo).to.not.have.any.keys('holdId', 'reservationProcessId', 'reservationId');",
+                  "});",
+                  "pm.test('sigue abierta', () => pm.expect(cuerpo.abierto).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar antes de que se confirme",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas/{{procesoId}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "{{procesoId}}",
+                "cancelar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procesoId')) {",
+                  "    console.log('Falta procesoId (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 409', () => pm.response.to.have.status(409));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:reserva-no-cancelable');",
+                  "    pm.expect(problema.status).to.eql(409);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enviar un teléfono vacío",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas/{{procesoId}}/telefono",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "{{procesoId}}",
+                "telefono"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telefono\": \" \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procesoId')) {",
+                  "    console.log('Falta procesoId (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 400', () => pm.response.to.have.status(400));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:datos-invalidos');",
+                  "    pm.expect(problema.status).to.eql(400);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});",
+                  "pm.test('el detalle nombra el campo', () => pm.expect(problema.detail).to.include('telefono'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Esperar el pedido del teléfono",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas/{{procesoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "{{procesoId}}"
+              ]
+            },
+            "description": "La cátedra pide el teléfono por Kafka: se consulta cada 2 segundos, hasta 30 segundos."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procesoId')) {",
+                  "    console.log('Falta procesoId (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const cuerpo = pm.response.json();",
+                  "const listo = cuerpo.puedeEnviarTelefono === true;",
+                  "const intentos = Number(pm.collectionVariables.get('intentos') || 0);",
+                  "if (!listo && intentos < 15) {",
+                  "    pm.collectionVariables.set('intentos', intentos + 1);",
+                  "    console.log('Esperando el pedido del teléfono: intento ' + (intentos + 1) + ', estado ' + cuerpo.estado);",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "    setTimeout(() => {}, 2000);",
+                  "} else {",
+                  "    pm.collectionVariables.set('intentos', 0);",
+                  "    pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "    pm.test('el pedido del teléfono llegó a tiempo', () => pm.expect(listo, 'estado: ' + cuerpo.estado).to.be.true);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enviar el teléfono",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas/{{procesoId}}/telefono",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "{{procesoId}}",
+                "telefono"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telefono\": \"{{telefono}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procesoId')) {",
+                  "    console.log('Falta procesoId (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 202', () => pm.response.to.have.status(202));",
+                  "pm.test('el Content-Type es JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const cuerpo = pm.response.json();",
+                  "pm.test('el teléfono quedó enviado', () => pm.expect(cuerpo.estado).to.eql('TELEFONO_ENVIADO'));",
+                  "pm.test('la respuesta no repite el teléfono', () => pm.expect(pm.response.text()).to.not.include(pm.variables.get('telefono')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Esperar la confirmación",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas/{{procesoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "{{procesoId}}"
+              ]
+            },
+            "description": "La cátedra confirma por Kafka: se consulta cada 2 segundos, hasta 30 segundos."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procesoId')) {",
+                  "    console.log('Falta procesoId (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const cuerpo = pm.response.json();",
+                  "const listo = cuerpo.estado === 'CONFIRMADO';",
+                  "const intentos = Number(pm.collectionVariables.get('intentos') || 0);",
+                  "if (!listo && intentos < 15) {",
+                  "    pm.collectionVariables.set('intentos', intentos + 1);",
+                  "    console.log('Esperando la confirmación: intento ' + (intentos + 1) + ', estado ' + cuerpo.estado);",
+                  "    pm.execution.setNextRequest(pm.info.requestName);",
+                  "    setTimeout(() => {}, 2000);",
+                  "} else {",
+                  "    pm.collectionVariables.set('intentos', 0);",
+                  "    pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "    pm.test('la confirmación llegó a tiempo', () => pm.expect(listo, 'estado: ' + cuerpo.estado).to.be.true);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mis reservas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procesoId')) {",
+                  "    console.log('Falta procesoId (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('el Content-Type es JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const cuerpo = pm.response.json();",
+                  "pm.test('la cátedra respondió', () => pm.expect(cuerpo.desactualizado).to.be.false);",
+                  "const reserva = cuerpo.reservas.find(r => r.procesoId === Number(pm.collectionVariables.get('procesoId')));",
+                  "pm.test('incluye la reserva confirmada', () => {",
+                  "    pm.expect(reserva, 'reserva del proceso').to.exist;",
+                  "    pm.expect(reserva.estado).to.eql('CONFIRMADO');",
+                  "    pm.expect(reserva.fecha).to.eql(pm.collectionVariables.get('fechaTurno'));",
+                  "    pm.expect(reserva.profesional.id).to.eql(Number(pm.collectionVariables.get('profesionalId')));",
+                  "    pm.expect(reserva.confirmadaEn).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mis reservas sin token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 401', () => pm.response.to.have.status(401));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:no-autenticado');",
+                  "    pm.expect(problema.status).to.eql(401);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar la reserva",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas/{{procesoId}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "{{procesoId}}",
+                "cancelar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Prueba automática con Newman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Libera el turno en la cátedra para no dejarlo tomado."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procesoId')) {",
+                  "    console.log('Falta procesoId (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('el Content-Type es JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const cuerpo = pm.response.json();",
+                  "pm.test('queda cancelada con el motivo', () => {",
+                  "    pm.expect(cuerpo.estado).to.eql('CANCELADO');",
+                  "    pm.expect(cuerpo.abierto).to.be.false;",
+                  "    pm.expect(cuerpo.motivo).to.eql('Prueba automática con Newman');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar de nuevo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas/{{procesoId}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "{{procesoId}}",
+                "cancelar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Cancelar dos veces no es un error."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('procesoId')) {",
+                  "    console.log('Falta procesoId (no hubo un turno libre para reservar): se saltea este pedido');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('el Content-Type es JSON', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const cuerpo = pm.response.json();",
+                  "pm.test('sigue cancelada', () => pm.expect(cuerpo.estado).to.eql('CANCELADO'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar una reserva inexistente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservas/{{idInexistente}}/cancelar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "{{idInexistente}}",
+                "cancelar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 404', () => pm.response.to.have.status(404));",
+                  "pm.test('el Content-Type es problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const problema = pm.response.json();",
+                  "pm.test('el cuerpo es un ProblemDetail', () => {",
+                  "    pm.expect(problema.type).to.eql('urn:turnos:error:proceso-no-encontrado');",
+                  "    pm.expect(problema.status).to.eql(404);",
+                  "    pm.expect(problema.title).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.detail).to.be.a('string').and.not.empty;",
+                  "    pm.expect(problema.instance).to.eql(pm.request.url.getPath());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Salud",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('responde 200', () => pm.response.to.have.status(200));",
+                  "pm.test('está UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
