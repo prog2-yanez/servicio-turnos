@@ -491,7 +491,7 @@ La respuesta del alta (`POST /api/student/register`) o de `GET /api/student/inte
 | `CATEDRA_API_URL` | URL base de la API (la entrega la cátedra) |
 | `CATEDRA_JWT` | `id_token` |
 | `CATEDRA_KAFKA_BOOTSTRAP_SERVERS` | `integration.kafkaBootstrapServers` |
-| `CATEDRA_KAFKA_CONSUMER_GROUP` | `integration.kafkaConsumerGroupId` |
+| `CATEDRA_KAFKA_CONSUMER_GROUP` | `integration.kafkaConsumerGroupId` (el grupo con el que turnos lee el topic de acciones) |
 | `CATEDRA_KAFKA_TOPIC_ACCIONES` | `integration.kafkaAppointmentActionsTopic` (eventos que publica la cátedra sobre cada reserva) |
 | `CATEDRA_KAFKA_TOPIC_TELEFONO` | `integration.kafkaAppointmentPhoneTopic` (donde turnos publica el teléfono del paciente) |
 | `CATEDRA_GROUP_ID` | `integration.groupId` (va en cada evento que publica turnos) |

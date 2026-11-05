@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import prog2.servicioturnos.TestcontainersConfiguration;
@@ -50,6 +51,9 @@ class ResultadosKafkaIntegracionTests {
     @Autowired
     private JpaEventoProcesadoRepository eventosProcesados;
 
+    @Autowired
+    private KafkaListenerEndpointRegistry listeners;
+
     private String reservationProcessId;
     private long procesoId;
 
@@ -66,6 +70,13 @@ class ResultadosKafkaIntegracionTests {
                 .esperandoTelefono(ahora.plusSeconds(600), ahora)
                 .telefonoPedido("ev-pedido-" + reservationProcessId, ahora.plusSeconds(600), ahora)
                 .telefonoEnviado(ahora)).id();
+    }
+
+    // Sin groupId, Spring usaría el id del listener ("acciones-catedra") como grupo.
+    @Test
+    void elListenerUsaElGrupoAsignadoPorLaCatedra() {
+        assertThat(listeners.getListenerContainer("acciones-catedra").getGroupId())
+                .isEqualTo("turnos-resultados-de-prueba");
     }
 
     @Test
