@@ -127,13 +127,14 @@ curl -X POST http://localhost:8081/api/v1/cuenta/registro \
 | `login` | Obligatorio, hasta 50 caracteres: letras, números y `_.@-` |
 | `password` | Obligatoria, entre 4 y 100 caracteres |
 | `email` | Obligatorio y válido, entre 5 y 254 caracteres |
-| `firstName`, `lastName` | Opcionales, hasta 50 caracteres |
+| `firstName`, `lastName` | Obligatorios, entre 2 y 50 caracteres sin contar los espacios de los extremos |
 | `imageUrl` | Opcional, hasta 256 caracteres |
 | `langKey` | Opcional, entre 2 y 10 caracteres (por defecto `es`) |
 
 - Responde `201` con `{"id_token": "...", "venceEn": "..."}`: la cuenta queda activa y con la sesión iniciada.
 - `login` y `email` se guardan en minúsculas. Si ya existen, responde `409` (`login-repetido` o `email-repetido`).
 - Id, estado, roles y auditoría los decide el servicio: la cuenta nace activa y con `ROLE_USER`.
+- Nombre y apellido son obligatorios, aunque en JHipster son opcionales, porque la cátedra los exige para confirmar una reserva. Sin ellos la cuenta no podría reservar nunca. Se guardan sin los espacios de los extremos.
 
 ### Iniciar sesión
 
@@ -267,7 +268,7 @@ Cómo se arman los turnos libres:
 
 Pasos, en orden:
 
-1. La cuenta tiene que tener nombre y apellido de al menos 2 caracteres, porque la cátedra los exige. Si no, `400 datos-de-cuenta-incompletos`.
+1. La cuenta tiene que tener nombre y apellido de al menos 2 caracteres, porque la cátedra los exige. Si no, `400 datos-de-cuenta-incompletos`. El registro ya los exige, así que solo puede pasar con cuentas creadas antes de esa regla.
 2. Un usuario puede tener **un solo proceso abierto** a la vez. Si ya tiene uno, `409 proceso-abierto`.
 3. Se vuelve a validar con el catálogo y la cátedra que el turno siga libre (la misma regla que la disponibilidad). Si no, `409 turno-no-disponible`.
 4. Se registra el proceso a nombre del usuario en estado `INICIADO`, **antes** de llamar a la cátedra.
