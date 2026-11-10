@@ -75,10 +75,12 @@ class CuentaControllerTests {
         when(registrarUsuario.registrar(any())).thenReturn(new TokenAcceso("jwt", Instant.now()));
 
         registrar("""
-                {"login": "ana", "password": "secreta", "email": "ana@mail.com"}
+                {"login": "ana", "password": "secreta", "firstName": "Ana", "lastName": "Gomez",
+                 "email": "ana@mail.com"}
                 """);
 
-        verify(registrarUsuario).registrar(new DatosRegistro("ana", "secreta", null, null, "ana@mail.com", null, "es"));
+        verify(registrarUsuario).registrar(
+                new DatosRegistro("ana", "secreta", "Ana", "Gomez", "ana@mail.com", null, "es"));
     }
 
     @Test
@@ -94,12 +96,54 @@ class CuentaControllerTests {
         verifyNoInteractions(registrarUsuario);
     }
 
+    // Sin nombre y apellido la cuenta no podría reservar: la cátedra los exige.
+    @Test
+    void sinNombreNiApellidoDevuelve400NombrandoLosCampos() {
+        MvcTestResult resultado = registrar("""
+                {"login": "ana", "password": "secreta", "email": "ana@mail.com"}
+                """);
+
+        assertThat(resultado).hasStatus(HttpStatus.BAD_REQUEST);
+        assertThat(resultado).bodyJson().extractingPath("$.type").isEqualTo("urn:turnos:error:datos-invalidos");
+        assertThat(resultado).bodyJson().extractingPath("$.detail").asString()
+                .contains("firstName: es obligatorio", "lastName: es obligatorio");
+        verifyNoInteractions(registrarUsuario);
+    }
+
+    // Los espacios de los extremos no cuentan: " A " tiene una sola letra.
+    @Test
+    void unNombreDeUnaLetraDevuelve400AunqueTengaEspacios() {
+        MvcTestResult resultado = registrar("""
+                {"login": "ana", "password": "secreta", "firstName": " A ", "lastName": "Gomez",
+                 "email": "ana@mail.com"}
+                """);
+
+        assertThat(resultado).hasStatus(HttpStatus.BAD_REQUEST);
+        assertThat(resultado).bodyJson().extractingPath("$.detail").asString()
+                .contains("firstName: tiene que tener entre 2 y 50 caracteres");
+        verifyNoInteractions(registrarUsuario);
+    }
+
+    @Test
+    void elNombreYElApellidoSeGuardanSinLosEspaciosDeLosExtremos() {
+        when(registrarUsuario.registrar(any())).thenReturn(new TokenAcceso("jwt", Instant.now()));
+
+        registrar("""
+                {"login": "ana", "password": "secreta", "firstName": "  Ana ", "lastName": " Gomez  ",
+                 "email": "ana@mail.com"}
+                """);
+
+        verify(registrarUsuario).registrar(
+                new DatosRegistro("ana", "secreta", "Ana", "Gomez", "ana@mail.com", null, "es"));
+    }
+
     @Test
     void unLoginRepetidoDevuelve409() {
         when(registrarUsuario.registrar(any())).thenThrow(new LoginRepetidoException("ana"));
 
         MvcTestResult resultado = registrar("""
-                {"login": "ana", "password": "secreta", "email": "ana@mail.com"}
+                {"login": "ana", "password": "secreta", "firstName": "Ana", "lastName": "Gomez",
+                 "email": "ana@mail.com"}
                 """);
 
         assertThat(resultado).hasStatus(HttpStatus.CONFLICT);
