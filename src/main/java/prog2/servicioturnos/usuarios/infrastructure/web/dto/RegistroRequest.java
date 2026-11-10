@@ -7,7 +7,9 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import prog2.servicioturnos.usuarios.domain.model.DatosRegistro;
 
-// Mismos campos y límites que el registro de JHipster. Id, estado, roles y auditoría no se aceptan.
+// Mismos campos que el registro de JHipster. Id, estado, roles y auditoría no se aceptan.
+// A diferencia de JHipster, nombre y apellido son obligatorios: la cátedra los exige para confirmar la reserva, y
+// sin ellos la cuenta no podría reservar nunca.
 public record RegistroRequest(
         @NotBlank(message = "es obligatorio")
         @Size(max = 50, message = "puede tener hasta 50 caracteres")
@@ -18,10 +20,12 @@ public record RegistroRequest(
         @Size(min = 4, max = 100, message = "tiene que tener entre 4 y 100 caracteres")
         String password,
 
-        @Size(max = 50, message = "puede tener hasta 50 caracteres")
+        @NotBlank(message = "es obligatorio")
+        @Size(min = 2, max = 50, message = "tiene que tener entre 2 y 50 caracteres")
         String firstName,
 
-        @Size(max = 50, message = "puede tener hasta 50 caracteres")
+        @NotBlank(message = "es obligatorio")
+        @Size(min = 2, max = 50, message = "tiene que tener entre 2 y 50 caracteres")
         String lastName,
 
         @NotBlank(message = "es obligatorio")
@@ -37,9 +41,19 @@ public record RegistroRequest(
 
     static final String IDIOMA_POR_DEFECTO = "es";
 
+    // Los espacios de los extremos no cuentan para el largo ni se guardan: " A " no alcanza para un nombre.
+    public RegistroRequest {
+        firstName = sinEspaciosExtremos(firstName);
+        lastName = sinEspaciosExtremos(lastName);
+    }
+
     public DatosRegistro aDatos() {
         String idioma = langKey == null ? IDIOMA_POR_DEFECTO : langKey;
         return new DatosRegistro(login, password, firstName, lastName, email, imageUrl, idioma);
+    }
+
+    private static String sinEspaciosExtremos(String texto) {
+        return texto == null ? null : texto.strip();
     }
 
     @Override

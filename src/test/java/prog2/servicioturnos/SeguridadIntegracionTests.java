@@ -108,7 +108,8 @@ class SeguridadIntegracionTests {
         String email = login + "@mail.com";
         MvcTestResult resultado = mvc.post().uri("/api/v1/cuenta/registro")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"login\": \"" + login + "\", \"password\": \"secreta1\", \"email\": \"" + email + "\"}")
+                .content("{\"login\": \"" + login + "\", \"password\": \"secreta1\", \"firstName\": \"Ana\","
+                        + " \"lastName\": \"Gomez\", \"email\": \"" + email + "\"}")
                 .exchange();
         assertThat(resultado).hasStatus(HttpStatus.CREATED);
         String cuerpo = new String(resultado.getResponse().getContentAsByteArray());
