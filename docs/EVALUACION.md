@@ -3,7 +3,7 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación II (UM): RepoSense + análisis de calidad de **7 dimensiones**. **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas) + build: es una criba para orientar la revisión, **no una nota**. La **documentación** del repositorio no se evalúa.
-> Generado: 2026-11-17.
+> Generado: 2026-11-18.
 
 ## 1. Veredicto
 
@@ -102,117 +102,148 @@ Cada dimensión indica **qué mide**, **por qué importa** y **tu resultado**. C
 
 ## 5. Señales detectadas
 
-El análisis encontró las siguientes señales (archivo, sin número de línea a propósito):
+El análisis encontró las siguientes señales, con el archivo y la línea donde se originan cuando están disponibles:
+
+**Archivos con más señales**
+
+| Archivo | Señales |
+|---|---:|
+| `src/main/java/prog2/servicioturnos/shared/web/ManejadorErroresApi.java` | 7 |
+| `src/main/java/prog2/servicioturnos/reservas/domain/model/ProcesoReserva.java` | 7 |
+| `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catalogo/CatalogoRestAdapter.java` | 5 |
+| `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/ReservasCatedraRestAdapter.java` | 5 |
+| `src/main/java/prog2/servicioturnos/reservas/application/usecases/IniciarReservaService.java` | 5 |
+| `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catedra/OcupacionesCatedraRestAdapter.java` | 4 |
+| `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/HoldsCatedraRestAdapter.java` | 4 |
+| `src/main/java/prog2/servicioturnos/config/CorsConfig.java` | 3 |
+| `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/AccionesCatedraListener.java` | 3 |
+| `src/main/java/prog2/servicioturnos/reservas/infrastructure/web/ReservaController.java` | 3 |
 
 **DIP/concretos** (47)
-- clase 'EmisorTokensJwt' muy acoplada (CBO=14) — `src/main/java/prog2/servicioturnos/usuarios/infrastructure/seguridad/EmisorTokensJwt.java`
-- clase 'CuentaController' muy acoplada (CBO=11) — `src/main/java/prog2/servicioturnos/usuarios/infrastructure/web/CuentaController.java`
-- clase 'IniciarSesionService' muy acoplada (CBO=10) — `src/main/java/prog2/servicioturnos/usuarios/application/usecases/IniciarSesionService.java`
-- clase 'RegistrarUsuarioService' muy acoplada (CBO=10) — `src/main/java/prog2/servicioturnos/usuarios/application/usecases/RegistrarUsuarioService.java`
-- clase 'OcupacionesCatedraRestAdapter' muy acoplada (CBO=37) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catedra/OcupacionesCatedraRestAdapter.java`
-- clase 'OcupacionesCatedraRestAdapter' instancia 5 concretos (CBO=37) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catedra/OcupacionesCatedraRestAdapter.java`
-- clase 'CatalogoRestAdapter' muy acoplada (CBO=29) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catalogo/CatalogoRestAdapter.java`
-- clase 'CatalogoRestAdapter' instancia 7 concretos (CBO=29) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catalogo/CatalogoRestAdapter.java`
-- clase 'DisponibilidadController' muy acoplada (CBO=9) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/web/DisponibilidadController.java`
-- clase 'ConsultarTurnosLibresService' muy acoplada (CBO=14) — `src/main/java/prog2/servicioturnos/disponibilidad/application/usecases/ConsultarTurnosLibresService.java`
-- clase 'BuscarProfesionalesConTurnosLibresService' muy acoplada (CBO=17) — `src/main/java/prog2/servicioturnos/disponibilidad/application/usecases/BuscarProfesionalesConTurnosLibresService.java`
-- clase 'CalculadoraTurnosLibres' muy acoplada (CBO=15) — `src/main/java/prog2/servicioturnos/disponibilidad/domain/service/CalculadoraTurnosLibres.java`
-- clase 'CorsConfig' muy acoplada (CBO=27) — `src/main/java/prog2/servicioturnos/config/CorsConfig.java`
-- clase 'CorsConfig' instancia 4 concretos (CBO=27) — `src/main/java/prog2/servicioturnos/config/CorsConfig.java`
-- clase 'RechazoComoProblema' muy acoplada (CBO=12) — `src/main/java/prog2/servicioturnos/config/CorsConfig.java`
-- clase 'JwtConfig' muy acoplada (CBO=14) — `src/main/java/prog2/servicioturnos/config/JwtConfig.java`
-- clase 'CatedraConfig' muy acoplada (CBO=8) — `src/main/java/prog2/servicioturnos/config/CatedraConfig.java`
-- clase 'SecurityConfig' muy acoplada (CBO=19) — `src/main/java/prog2/servicioturnos/config/SecurityConfig.java`
-- clase 'LectorErrorCatedra' muy acoplada (CBO=10) — `src/main/java/prog2/servicioturnos/shared/catedra/LectorErrorCatedra.java`
-- clase 'ManejadorErroresApi' muy acoplada (CBO=65) — `src/main/java/prog2/servicioturnos/shared/web/ManejadorErroresApi.java`
-- clase 'ManejadorErroresApi' instancia 5 concretos (CBO=65) — `src/main/java/prog2/servicioturnos/shared/web/ManejadorErroresApi.java`
-- clase 'HoldsCatedraRestAdapter' muy acoplada (CBO=39) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/HoldsCatedraRestAdapter.java`
-- clase 'HoldsCatedraRestAdapter' instancia 13 concretos (CBO=39) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/HoldsCatedraRestAdapter.java`
-- clase 'ReservasCatedraRestAdapter' muy acoplada (CBO=41) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/ReservasCatedraRestAdapter.java`
-- clase 'ReservasCatedraRestAdapter' instancia 9 concretos (CBO=41) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/ReservasCatedraRestAdapter.java`
-- clase 'ProcesoReservaPersistenceAdapter' muy acoplada (CBO=8) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/persistence/ProcesoReservaPersistenceAdapter.java`
-- clase 'JpaEventoProcesadoRepository' muy acoplada (CBO=11) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/persistence/repository/JpaEventoProcesadoRepository.java`
-- clase 'ProcesoReservaEntity' muy acoplada (CBO=8) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/persistence/entity/ProcesoReservaEntity.java`
-- clase 'AccionesCatedraListener' muy acoplada (CBO=18) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/AccionesCatedraListener.java`
-- clase 'KafkaConfig' muy acoplada (CBO=8) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/KafkaConfig.java`
-- clase 'PublicadorTelefonoKafka' muy acoplada (CBO=21) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/PublicadorTelefonoKafka.java`
-- clase 'PublicadorTelefonoKafka' instancia 3 concretos (CBO=21) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/PublicadorTelefonoKafka.java`
-- clase 'ReservaController' muy acoplada (CBO=22) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/web/ReservaController.java`
-- clase 'CancelarReservaService' muy acoplada (CBO=26) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/CancelarReservaService.java`
-- clase 'CancelarReservaService' instancia 4 concretos (CBO=26) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/CancelarReservaService.java`
-- clase 'RecuperarProcesosService' muy acoplada (CBO=28) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/RecuperarProcesosService.java`
-- clase 'ProcesarAccionesCatedraService' muy acoplada (CBO=15) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/ProcesarAccionesCatedraService.java`
-- clase 'ListarReservasPropiasService' muy acoplada (CBO=30) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/ListarReservasPropiasService.java`
-- clase 'ListarReservasPropiasService' instancia 4 concretos (CBO=30) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/ListarReservasPropiasService.java`
-- clase 'EnviarTelefonoService' muy acoplada (CBO=14) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/EnviarTelefonoService.java`
-- clase 'EnviarTelefonoService' instancia 4 concretos (CBO=14) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/EnviarTelefonoService.java`
-- clase 'IniciarReservaService' muy acoplada (CBO=26) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/IniciarReservaService.java`
-- clase 'IniciarReservaService' instancia 3 concretos (CBO=26) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/IniciarReservaService.java`
-- clase 'ReservasCatedra' muy acoplada (CBO=8) — `src/main/java/prog2/servicioturnos/reservas/domain/ports/out/ReservasCatedra.java`
-- clase 'ProcesoReserva' muy acoplada (CBO=28) — `src/main/java/prog2/servicioturnos/reservas/domain/model/ProcesoReserva.java`
-- clase 'ProcesoReserva' instancia 15 concretos (CBO=28) — `src/main/java/prog2/servicioturnos/reservas/domain/model/ProcesoReserva.java`
-- clase 'EstadoProceso' muy acoplada (CBO=13) — `src/main/java/prog2/servicioturnos/reservas/domain/model/EstadoProceso.java`
+- clase 'CatedraConfig' muy acoplada (CBO=8) — `src/main/java/prog2/servicioturnos/config/CatedraConfig.java:12`
+- clase 'CorsConfig' muy acoplada (CBO=27) — `src/main/java/prog2/servicioturnos/config/CorsConfig.java:26`
+- clase 'CorsConfig' instancia 4 concretos (CBO=27) — `src/main/java/prog2/servicioturnos/config/CorsConfig.java:26`
+- clase 'RechazoComoProblema' muy acoplada (CBO=12) — `src/main/java/prog2/servicioturnos/config/CorsConfig.java:52`
+- clase 'JwtConfig' muy acoplada (CBO=14) — `src/main/java/prog2/servicioturnos/config/JwtConfig.java:18`
+- clase 'SecurityConfig' muy acoplada (CBO=19) — `src/main/java/prog2/servicioturnos/config/SecurityConfig.java:20`
+- clase 'BuscarProfesionalesConTurnosLibresService' muy acoplada (CBO=17) — `src/main/java/prog2/servicioturnos/disponibilidad/application/usecases/BuscarProfesionalesConTurnosLibresService.java:24`
+- clase 'ConsultarTurnosLibresService' muy acoplada (CBO=14) — `src/main/java/prog2/servicioturnos/disponibilidad/application/usecases/ConsultarTurnosLibresService.java:21`
+- clase 'CalculadoraTurnosLibres' muy acoplada (CBO=15) — `src/main/java/prog2/servicioturnos/disponibilidad/domain/service/CalculadoraTurnosLibres.java:19`
+- clase 'CatalogoRestAdapter' muy acoplada (CBO=29) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catalogo/CatalogoRestAdapter.java:27`
+- clase 'CatalogoRestAdapter' instancia 7 concretos (CBO=29) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catalogo/CatalogoRestAdapter.java:27`
+- clase 'OcupacionesCatedraRestAdapter' muy acoplada (CBO=37) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catedra/OcupacionesCatedraRestAdapter.java:30`
+- clase 'OcupacionesCatedraRestAdapter' instancia 5 concretos (CBO=37) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catedra/OcupacionesCatedraRestAdapter.java:30`
+- clase 'DisponibilidadController' muy acoplada (CBO=9) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/web/DisponibilidadController.java:19`
+- clase 'CancelarReservaService' muy acoplada (CBO=26) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/CancelarReservaService.java:25`
+- clase 'CancelarReservaService' instancia 4 concretos (CBO=26) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/CancelarReservaService.java:25`
+- clase 'EnviarTelefonoService' muy acoplada (CBO=14) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/EnviarTelefonoService.java:20`
+- clase 'EnviarTelefonoService' instancia 4 concretos (CBO=14) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/EnviarTelefonoService.java:20`
+- clase 'IniciarReservaService' muy acoplada (CBO=26) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/IniciarReservaService.java:30`
+- clase 'IniciarReservaService' instancia 3 concretos (CBO=26) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/IniciarReservaService.java:30`
+- clase 'ListarReservasPropiasService' muy acoplada (CBO=30) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/ListarReservasPropiasService.java:30`
+- clase 'ListarReservasPropiasService' instancia 4 concretos (CBO=30) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/ListarReservasPropiasService.java:30`
+- clase 'ProcesarAccionesCatedraService' muy acoplada (CBO=15) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/ProcesarAccionesCatedraService.java:21`
+- clase 'RecuperarProcesosService' muy acoplada (CBO=28) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/RecuperarProcesosService.java:25`
+- clase 'EstadoProceso' muy acoplada (CBO=13) — `src/main/java/prog2/servicioturnos/reservas/domain/model/EstadoProceso.java:4`
+- clase 'ProcesoReserva' muy acoplada (CBO=30) — `src/main/java/prog2/servicioturnos/reservas/domain/model/ProcesoReserva.java:10`
+- clase 'ProcesoReserva' instancia 15 concretos (CBO=30) — `src/main/java/prog2/servicioturnos/reservas/domain/model/ProcesoReserva.java:10`
+- clase 'ReservasCatedra' muy acoplada (CBO=8) — `src/main/java/prog2/servicioturnos/reservas/domain/ports/out/ReservasCatedra.java:8`
+- clase 'HoldsCatedraRestAdapter' muy acoplada (CBO=39) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/HoldsCatedraRestAdapter.java:30`
+- clase 'HoldsCatedraRestAdapter' instancia 13 concretos (CBO=39) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/HoldsCatedraRestAdapter.java:30`
+- clase 'ReservasCatedraRestAdapter' muy acoplada (CBO=41) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/ReservasCatedraRestAdapter.java:29`
+- clase 'ReservasCatedraRestAdapter' instancia 9 concretos (CBO=41) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/ReservasCatedraRestAdapter.java:29`
+- clase 'AccionesCatedraListener' muy acoplada (CBO=18) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/AccionesCatedraListener.java:19`
+- clase 'KafkaConfig' muy acoplada (CBO=8) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/KafkaConfig.java:12`
+- clase 'PublicadorTelefonoKafka' muy acoplada (CBO=21) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/PublicadorTelefonoKafka.java:20`
+- clase 'PublicadorTelefonoKafka' instancia 3 concretos (CBO=21) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/PublicadorTelefonoKafka.java:20`
+- clase 'ProcesoReservaPersistenceAdapter' muy acoplada (CBO=8) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/persistence/ProcesoReservaPersistenceAdapter.java:16`
+- clase 'ProcesoReservaEntity' muy acoplada (CBO=8) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/persistence/entity/ProcesoReservaEntity.java:24`
+- clase 'JpaEventoProcesadoRepository' muy acoplada (CBO=11) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/persistence/repository/JpaEventoProcesadoRepository.java:9`
+- clase 'ReservaController' muy acoplada (CBO=22) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/web/ReservaController.java:30`
+- clase 'LectorErrorCatedra' muy acoplada (CBO=10) — `src/main/java/prog2/servicioturnos/shared/catedra/LectorErrorCatedra.java:13`
+- clase 'ManejadorErroresApi' muy acoplada (CBO=65) — `src/main/java/prog2/servicioturnos/shared/web/ManejadorErroresApi.java:41`
+- clase 'ManejadorErroresApi' instancia 5 concretos (CBO=65) — `src/main/java/prog2/servicioturnos/shared/web/ManejadorErroresApi.java:41`
+- clase 'IniciarSesionService' muy acoplada (CBO=10) — `src/main/java/prog2/servicioturnos/usuarios/application/usecases/IniciarSesionService.java:18`
+- clase 'RegistrarUsuarioService' muy acoplada (CBO=10) — `src/main/java/prog2/servicioturnos/usuarios/application/usecases/RegistrarUsuarioService.java:18`
+- clase 'EmisorTokensJwt' muy acoplada (CBO=14) — `src/main/java/prog2/servicioturnos/usuarios/infrastructure/seguridad/EmisorTokensJwt.java:20`
+- clase 'CuentaController' muy acoplada (CBO=11) — `src/main/java/prog2/servicioturnos/usuarios/infrastructure/web/CuentaController.java:23`
 
-**SRP/responsabilidad** (26)
-- clase 'UsuarioEntity' grande (LOC=34, métodos=0, campos=14) — `src/main/java/prog2/servicioturnos/usuarios/infrastructure/persistence/entity/UsuarioEntity.java`
-- clase 'OcupacionesCatedraRestAdapter' con baja cohesión (8%) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catedra/OcupacionesCatedraRestAdapter.java`
-- clase 'CatalogoRestAdapter' grande (LOC=101, métodos=16, campos=6) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catalogo/CatalogoRestAdapter.java`
-- clase 'CatalogoRestAdapter' con baja cohesión (5%) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catalogo/CatalogoRestAdapter.java`
-- método 'ProfesionalConTurnosLibres.ProfesionalConTurnosLibres' con 5 parámetros — `src/main/java/prog2/servicioturnos/disponibilidad/domain/model/ProfesionalConTurnosLibres.java`
-- clase 'ManejadorErroresApi' grande (LOC=175, métodos=12, campos=5) — `src/main/java/prog2/servicioturnos/shared/web/ManejadorErroresApi.java`
-- clase 'ManejadorErroresApi' con baja cohesión (0%) — `src/main/java/prog2/servicioturnos/shared/web/ManejadorErroresApi.java`
-- clase 'HoldsCatedraRestAdapter' grande (LOC=73, métodos=10, campos=5) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/HoldsCatedraRestAdapter.java`
-- clase 'HoldsCatedraRestAdapter' con baja cohesión (9%) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/HoldsCatedraRestAdapter.java`
-- método 'HoldsCatedraRestAdapter.traducirError' con complejidad 6 — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/HoldsCatedraRestAdapter.java`
-- clase 'ReservasCatedraRestAdapter' grande (LOC=138, métodos=18, campos=8) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/ReservasCatedraRestAdapter.java`
-- clase 'ReservasCatedraRestAdapter' con baja cohesión (15%) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/ReservasCatedraRestAdapter.java`
-- método 'ReservasCatedraRestAdapter.deUnPaciente' con complejidad 6 — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/ReservasCatedraRestAdapter.java`
-- clase 'ProcesoReservaEntity' grande (LOC=34, métodos=0, campos=15) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/persistence/entity/ProcesoReservaEntity.java`
-- clase 'AccionesCatedraListener' grande (LOC=44, métodos=3, campos=9) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/AccionesCatedraListener.java`
-- método 'AccionesCatedraListener.recibir' con complejidad 9 — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/AccionesCatedraListener.java`
-- método 'AccionesCatedraListener.EventoCatedra' con complejidad 7 — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/AccionesCatedraListener.java`
-- clase 'CancelarReservaService' con baja cohesión (47%) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/CancelarReservaService.java`
-- clase 'RecuperarProcesosService' grande (LOC=99, métodos=10, campos=6) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/RecuperarProcesosService.java`
-- clase 'RecuperarProcesosService' con baja cohesión (33%) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/RecuperarProcesosService.java`
-- clase 'ListarReservasPropiasService' grande (LOC=75, métodos=10, campos=6) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/ListarReservasPropiasService.java`
-- clase 'ListarReservasPropiasService' con baja cohesión (2%) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/ListarReservasPropiasService.java`
-- clase 'IniciarReservaService' con baja cohesión (10%) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/IniciarReservaService.java`
-- método 'IniciarReservaService.iniciar' de 32 líneas — `src/main/java/prog2/servicioturnos/reservas/application/usecases/IniciarReservaService.java`
-- método 'IniciarReservaService.iniciar' con complejidad 6 — `src/main/java/prog2/servicioturnos/reservas/application/usecases/IniciarReservaService.java`
-- clase 'ProcesoReserva' grande (LOC=148, métodos=20, campos=2) — `src/main/java/prog2/servicioturnos/reservas/domain/model/ProcesoReserva.java`
+**SRP/responsabilidad** (42)
+- método 'ProfesionalConAgenda.ProfesionalConAgenda' con 6 parámetros — `src/main/java/prog2/servicioturnos/disponibilidad/domain/model/ProfesionalConAgenda.java:7`
+- método 'ProfesionalConTurnosLibres.ProfesionalConTurnosLibres' con 5 parámetros — `src/main/java/prog2/servicioturnos/disponibilidad/domain/model/ProfesionalConTurnosLibres.java:4`
+- método 'CalculadoraTurnosLibres.calcular' con 5 parámetros — `src/main/java/prog2/servicioturnos/disponibilidad/domain/service/CalculadoraTurnosLibres.java:26`
+- clase 'CatalogoRestAdapter' grande (LOC=101, métodos=23, campos=6) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catalogo/CatalogoRestAdapter.java:27`
+- clase 'CatalogoRestAdapter' con baja cohesión (13%) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catalogo/CatalogoRestAdapter.java:27`
+- método 'ProfesionalConAgendaResponse.ProfesionalConAgendaResponse' con 6 parámetros — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catalogo/dto/ProfesionalConAgendaResponse.java:12`
+- clase 'OcupacionesCatedraRestAdapter' grande (LOC=84, métodos=14, campos=4) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catedra/OcupacionesCatedraRestAdapter.java:30`
+- clase 'OcupacionesCatedraRestAdapter' con baja cohesión (10%) — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catedra/OcupacionesCatedraRestAdapter.java:30`
+- método 'ProfesionalConTurnosLibresResponse.ProfesionalConTurnosLibresResponse' con 5 parámetros — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/web/dto/ProfesionalConTurnosLibresResponse.java:5`
+- método 'IniciarReservaService.IniciarReservaService' con 5 parámetros — `src/main/java/prog2/servicioturnos/reservas/application/usecases/IniciarReservaService.java:40`
+- método 'IniciarReservaService.iniciar' de 32 líneas — `src/main/java/prog2/servicioturnos/reservas/application/usecases/IniciarReservaService.java:50`
+- método 'IniciarReservaService.iniciar' con complejidad 6 — `src/main/java/prog2/servicioturnos/reservas/application/usecases/IniciarReservaService.java:50`
+- clase 'ListarReservasPropiasService' con baja cohesión (5%) — `src/main/java/prog2/servicioturnos/reservas/application/usecases/ListarReservasPropiasService.java:30`
+- método 'EventoCatedra.EventoCatedra' con 6 parámetros — `src/main/java/prog2/servicioturnos/reservas/domain/model/EventoCatedra.java:7`
+- clase 'ProcesoReserva' grande (LOC=148, métodos=24, campos=0) — `src/main/java/prog2/servicioturnos/reservas/domain/model/ProcesoReserva.java:10`
+- método 'ProcesoReserva.ProcesoReserva' de 148 líneas — `src/main/java/prog2/servicioturnos/reservas/domain/model/ProcesoReserva.java:10`
+- método 'ProcesoReserva.ProcesoReserva' con 15 parámetros — `src/main/java/prog2/servicioturnos/reservas/domain/model/ProcesoReserva.java:10`
+- método 'ProcesoReserva.ProcesoReserva' con complejidad 10 — `src/main/java/prog2/servicioturnos/reservas/domain/model/ProcesoReserva.java:10`
+- método 'ProcesoReserva.iniciar' con 6 parámetros — `src/main/java/prog2/servicioturnos/reservas/domain/model/ProcesoReserva.java:36`
+- método 'ReservaCatedra.ReservaCatedra' con 13 parámetros — `src/main/java/prog2/servicioturnos/reservas/domain/model/ReservaCatedra.java:9`
+- método 'ReservaPropia.ReservaPropia' con 11 parámetros — `src/main/java/prog2/servicioturnos/reservas/domain/model/ReservaPropia.java:9`
+- método 'TelefonoInformado.TelefonoInformado' con 6 parámetros — `src/main/java/prog2/servicioturnos/reservas/domain/model/TelefonoInformado.java:6`
+- clase 'HoldsCatedraRestAdapter' con baja cohesión (24%) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/HoldsCatedraRestAdapter.java:30`
+- método 'HoldsCatedraRestAdapter.traducirError' con complejidad 6 — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/HoldsCatedraRestAdapter.java:90`
+- clase 'ReservasCatedraRestAdapter' grande (LOC=138, métodos=23, campos=8) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/ReservasCatedraRestAdapter.java:29`
+- clase 'ReservasCatedraRestAdapter' con baja cohesión (21%) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/ReservasCatedraRestAdapter.java:29`
+- método 'ReservasCatedraRestAdapter.deUnPaciente' con complejidad 6 — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/ReservasCatedraRestAdapter.java:54`
+- método 'ReservaCatedraResponse.ReservaCatedraResponse' con 13 parámetros — `src/main/java/prog2/servicioturnos/reservas/infrastructure/catedra/dto/ReservaCatedraResponse.java:10`
+- método 'AccionCatedraMensaje.AccionCatedraMensaje' con 6 parámetros — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/AccionCatedraMensaje.java:8`
+- clase 'AccionesCatedraListener' grande (LOC=44, métodos=2, campos=9) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/AccionesCatedraListener.java:19`
+- método 'AccionesCatedraListener.recibir' con complejidad 9 — `src/main/java/prog2/servicioturnos/reservas/infrastructure/messaging/AccionesCatedraListener.java:42`
+- clase 'ReservaController' con baja cohesión (33%) — `src/main/java/prog2/servicioturnos/reservas/infrastructure/web/ReservaController.java:30`
+- método 'ReservaController.ReservaController' con 5 parámetros — `src/main/java/prog2/servicioturnos/reservas/infrastructure/web/ReservaController.java:38`
+- método 'ProcesoReservaResponse.ProcesoReservaResponse' con 6 parámetros — `src/main/java/prog2/servicioturnos/reservas/infrastructure/web/dto/ProcesoReservaResponse.java:12`
+- clase 'ManejadorErroresApi' grande (LOC=175, métodos=21, campos=5) — `src/main/java/prog2/servicioturnos/shared/web/ManejadorErroresApi.java:41`
+- clase 'ManejadorErroresApi' con baja cohesión (0%) — `src/main/java/prog2/servicioturnos/shared/web/ManejadorErroresApi.java:41`
+- método 'ManejadorErroresApi.handleExceptionInternal' con 5 parámetros — `src/main/java/prog2/servicioturnos/shared/web/ManejadorErroresApi.java:192`
+- método 'ManejadorErroresApi.problema' con 5 parámetros — `src/main/java/prog2/servicioturnos/shared/web/ManejadorErroresApi.java:232`
+- método 'DatosRegistro.DatosRegistro' con 7 parámetros — `src/main/java/prog2/servicioturnos/usuarios/domain/model/DatosRegistro.java:6`
+- método 'Usuario.Usuario' con 14 parámetros — `src/main/java/prog2/servicioturnos/usuarios/domain/model/Usuario.java:7`
+- método 'CuentaResponse.CuentaResponse' con 9 parámetros — `src/main/java/prog2/servicioturnos/usuarios/infrastructure/web/dto/CuentaResponse.java:9`
+- método 'RegistroRequest.RegistroRequest' de 40 líneas — `src/main/java/prog2/servicioturnos/usuarios/infrastructure/web/dto/RegistroRequest.java:13`
 
 **?** (27)
-- clase 'LoginRepetidoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/usuarios/domain/exception/LoginRepetidoException.java`
-- clase 'EmailRepetidoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/usuarios/domain/exception/EmailRepetidoException.java`
-- clase 'CredencialesInvalidasException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/usuarios/domain/exception/CredencialesInvalidasException.java`
-- clase 'CuentaNoEncontradaException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/usuarios/domain/exception/CuentaNoEncontradaException.java`
-- clase 'ProfesionalNoEncontradoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/disponibilidad/domain/exception/ProfesionalNoEncontradoException.java`
-- clase 'CatedraNoDisponibleException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/disponibilidad/domain/exception/CatedraNoDisponibleException.java`
-- clase 'CatalogoNoDisponibleException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/disponibilidad/domain/exception/CatalogoNoDisponibleException.java`
-- clase 'FechaPasadaException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/disponibilidad/domain/exception/FechaPasadaException.java`
-- clase 'ProfesionalDeshabilitadoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/disponibilidad/domain/exception/ProfesionalDeshabilitadoException.java`
-- clase 'ServicioNoDisponibleException' con herencia profunda (DIT=2) — `src/main/java/prog2/servicioturnos/shared/exception/ServicioNoDisponibleException.java`
-- clase 'PedidoInvalidoException' con herencia profunda (DIT=2) — `src/main/java/prog2/servicioturnos/shared/exception/PedidoInvalidoException.java`
-- clase 'ConflictoException' con herencia profunda (DIT=2) — `src/main/java/prog2/servicioturnos/shared/exception/ConflictoException.java`
-- clase 'NoAutenticadoException' con herencia profunda (DIT=2) — `src/main/java/prog2/servicioturnos/shared/exception/NoAutenticadoException.java`
-- clase 'RecursoNoEncontradoException' con herencia profunda (DIT=2) — `src/main/java/prog2/servicioturnos/shared/exception/RecursoNoEncontradoException.java`
-- clase 'TelefonoNoPedidoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/TelefonoNoPedidoException.java`
-- clase 'DatosDeCuentaIncompletosException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/DatosDeCuentaIncompletosException.java`
-- clase 'ProcesoNoEncontradoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/ProcesoNoEncontradoException.java`
-- clase 'EnvioNoConfirmadoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/EnvioNoConfirmadoException.java`
-- clase 'TurnoNoDisponibleException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/TurnoNoDisponibleException.java`
-- clase 'CancelacionNoConfirmadaException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/CancelacionNoConfirmadaException.java`
-- clase 'TurnoOcupadoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/TurnoOcupadoException.java`
-- clase 'TelefonoInvalidoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/TelefonoInvalidoException.java`
-- clase 'SinProcesoEnCursoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/SinProcesoEnCursoException.java`
-- clase 'ProcesoVencidoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/ProcesoVencidoException.java`
-- clase 'ReservaNoCancelableException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/ReservaNoCancelableException.java`
-- clase 'ReservaRechazadaException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/ReservaRechazadaException.java`
-- clase 'ProcesoAbiertoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/ProcesoAbiertoException.java`
+- clase 'CatalogoNoDisponibleException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/disponibilidad/domain/exception/CatalogoNoDisponibleException.java:5`
+- clase 'CatedraNoDisponibleException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/disponibilidad/domain/exception/CatedraNoDisponibleException.java:5`
+- clase 'FechaPasadaException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/disponibilidad/domain/exception/FechaPasadaException.java:6`
+- clase 'ProfesionalDeshabilitadoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/disponibilidad/domain/exception/ProfesionalDeshabilitadoException.java:6`
+- clase 'ProfesionalNoEncontradoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/disponibilidad/domain/exception/ProfesionalNoEncontradoException.java:5`
+- clase 'CancelacionNoConfirmadaException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/CancelacionNoConfirmadaException.java:7`
+- clase 'DatosDeCuentaIncompletosException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/DatosDeCuentaIncompletosException.java:6`
+- clase 'EnvioNoConfirmadoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/EnvioNoConfirmadoException.java:6`
+- clase 'ProcesoAbiertoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/ProcesoAbiertoException.java:6`
+- clase 'ProcesoNoEncontradoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/ProcesoNoEncontradoException.java:6`
+- clase 'ProcesoVencidoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/ProcesoVencidoException.java:6`
+- clase 'ReservaNoCancelableException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/ReservaNoCancelableException.java:7`
+- clase 'ReservaRechazadaException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/ReservaRechazadaException.java:6`
+- clase 'SinProcesoEnCursoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/SinProcesoEnCursoException.java:5`
+- clase 'TelefonoInvalidoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/TelefonoInvalidoException.java:5`
+- clase 'TelefonoNoPedidoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/TelefonoNoPedidoException.java:5`
+- clase 'TurnoNoDisponibleException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/TurnoNoDisponibleException.java:6`
+- clase 'TurnoOcupadoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/reservas/domain/exception/TurnoOcupadoException.java:6`
+- clase 'ConflictoException' con herencia profunda (DIT=2) — `src/main/java/prog2/servicioturnos/shared/exception/ConflictoException.java:4`
+- clase 'NoAutenticadoException' con herencia profunda (DIT=2) — `src/main/java/prog2/servicioturnos/shared/exception/NoAutenticadoException.java:4`
+- clase 'PedidoInvalidoException' con herencia profunda (DIT=2) — `src/main/java/prog2/servicioturnos/shared/exception/PedidoInvalidoException.java:4`
+- clase 'RecursoNoEncontradoException' con herencia profunda (DIT=2) — `src/main/java/prog2/servicioturnos/shared/exception/RecursoNoEncontradoException.java:4`
+- clase 'ServicioNoDisponibleException' con herencia profunda (DIT=2) — `src/main/java/prog2/servicioturnos/shared/exception/ServicioNoDisponibleException.java:4`
+- clase 'CredencialesInvalidasException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/usuarios/domain/exception/CredencialesInvalidasException.java:6`
+- clase 'CuentaNoEncontradaException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/usuarios/domain/exception/CuentaNoEncontradaException.java:6`
+- clase 'EmailRepetidoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/usuarios/domain/exception/EmailRepetidoException.java:5`
+- clase 'LoginRepetidoException' con herencia profunda (DIT=3) — `src/main/java/prog2/servicioturnos/usuarios/domain/exception/LoginRepetidoException.java:5`
 
 **OCP/type-switch** (2)
-- clase 'CatalogoRestAdapter' con 1 type-checks — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catalogo/CatalogoRestAdapter.java`
-- clase 'ManejadorErroresApi' con 3 type-checks — `src/main/java/prog2/servicioturnos/shared/web/ManejadorErroresApi.java`
+- clase 'CatalogoRestAdapter' con 1 type-checks — `src/main/java/prog2/servicioturnos/disponibilidad/infrastructure/catalogo/CatalogoRestAdapter.java:27`
+- clase 'ManejadorErroresApi' con 3 type-checks — `src/main/java/prog2/servicioturnos/shared/web/ManejadorErroresApi.java:41`
 
 ## 6. Evolución por commit
 
